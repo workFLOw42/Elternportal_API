@@ -1,0 +1,3 @@
+fetch_data:
+  name: Fetch data
+  description: Fetch all data from ElternPortal.
