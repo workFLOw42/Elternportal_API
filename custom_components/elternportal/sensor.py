@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity
@@ -117,11 +118,14 @@ class ElternPortalSensor(
         """Return the full list of items as attribute."""
         if self.coordinator.data is None:
             return {}
+
+        last_fetch = None
+        if hasattr(self.coordinator, "last_update_success_time") and self.coordinator.last_update_success_time:
+            last_fetch = self.coordinator.last_update_success_time.isoformat()
+        elif self.coordinator.last_update_success:
+            last_fetch = datetime.now().isoformat()
+
         return {
             ATTR_ENTRIES: self.coordinator.data.get(self._data_key, []),
-            ATTR_LAST_FETCH: (
-                self.coordinator.last_update_success_time.isoformat()
-                if self.coordinator.last_update_success_time
-                else None
-            ),
+            ATTR_LAST_FETCH: last_fetch,
         }
