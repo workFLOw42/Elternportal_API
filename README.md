@@ -1,7 +1,7 @@
 # ElternPortal API for Home Assistant
 
-[![GitHub Release](https://img.shields.io/github/release/workFLOw42/ha-elternportal.svg?style=for-the-badge)](https://github.com/workFLOw42/ha-elternportal/releases)
-[![License](https://img.shields.io/github/license/workFLOw42/ha-elternportal.svg?style=for-the-badge)](LICENSE)
+[![GitHub Release](https://img.shields.io/github/release/workFLOw42/Elternportal_API.svg?style=for-the-badge)](https://github.com/workFLOw42/Elternportal_API/releases)
+[![License](https://img.shields.io/github/license/workFLOw42/Elternportal_API.svg?style=for-the-badge)](LICENSE)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
 <img src="images/logo.png" alt="ElternPortal API Logo" width="128"/>
