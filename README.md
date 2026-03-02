@@ -4,7 +4,9 @@
 [![License](https://img.shields.io/github/license/workFLOw42/Elternportal_API.svg?style=for-the-badge)](LICENSE)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
-<img src="images/logo.png" alt="ElternPortal API Logo" width="128"/>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/workFLOw42/ElternPortal_API/main/images/logo-hires.png" alt="ElternPortal API" width="256">
+</p>
 
 A Home Assistant custom integration for [ElternPortal](https://eltern-portal.org) – the school communication platform used by many German schools.
 
@@ -16,13 +18,14 @@ Based on the concepts of the [elternportal-api](https://github.com/philippdorman
 
 | Sensor | State | Attributes |
 |--------|-------|------------|
-| **Elternbriefe** | Number of letters | Full list of letters (title, date, link) |
+| **Schulinformationen** | Number of info entries | School information (key-value pairs) |
+| **Stundenplan** | Number of rows | Full timetable (subject, teacher, room per slot) |
+| **Schulaufgaben** | Number of exams | Upcoming exams (date, subject, title) |
+| **Termine** | Number of appointments | General appointments (date, title, details) |
 | **Schwarzes Brett** | Number of entries | Blackboard entries (title, content, date) |
-| **Termine** | Number of appointments | Appointments (title, date, details) |
-| **Nachrichten** | Number of messages | Messages (subject, sender, date) |
-| **Vertretungsplan** | Number of entries | Substitution plan rows |
-| **Stundenplan** | Number of rows | Timetable data |
-| **Kinder** | Number of children | Children information |
+| **Elternbriefe** | Number of letters | Parent letters (title, date, link, new-flag) |
+| **Kommunikation Fachlehrer** | Number of messages | Teacher messages (subject, sender, date, unread) |
+| **Kinder** | Number of children | Children information (name, class) |
 
 > **Manual fetch only** – Data is fetched exclusively via the `elternportal.fetch_data` service.
 > No automatic polling. Trigger it from an automation, script, or the Developer Tools.
@@ -34,7 +37,7 @@ Based on the concepts of the [elternportal-api](https://github.com/philippdorman
 1. Go to **Settings → Devices & Services → Add Integration**
 2. Search for **ElternPortal API**
 3. Enter your credentials:
-   - **School Slug** – subdomain of your school, e.g. `gymnasium-musterstadt` from `gymnasium-musterstadt.eltern-portal.org`
+   - **School Slug** – subdomain of your school, e.g. `aegymuc` from `aegymuc.eltern-portal.org`
    - **Username** – your email address
    - **Password** – your password
 
@@ -53,6 +56,21 @@ data: {}
 
 ---
 
+## Endpoints
+
+| Sensor | URL Path |
+|--------|----------|
+| Schulinformationen | `/service/schulinformationen` |
+| Stundenplan | `/service/stundenplan` |
+| Schulaufgaben | `/service/termine/liste/schulaufgaben` |
+| Termine | `/service/termine/liste/allgemein` |
+| Schwarzes Brett | `/aktuelles/schwarzes_brett` |
+| Elternbriefe | `/aktuelles/elternbriefe` |
+| Kommunikation Fachlehrer | `/meldungen/kommunikation_fachlehrer` |
+| Kinder | `/service/kinder` |
+
+---
+
 ## Example Automation
 
 ```yaml
@@ -67,7 +85,7 @@ automation:
   - alias: "ElternPortal – Neue Elternbriefe"
     trigger:
       - platform: state
-        entity_id: sensor.elternportal_elternbriefe
+        entity_id: sensor.elternportal_api_elternbriefe
     condition:
       - condition: template
         value_template: >
@@ -79,19 +97,34 @@ automation:
           message: >
             Es gibt {{ trigger.to_state.state }} Elternbriefe.
 
-  - alias: "ElternPortal – Vertretungsplan"
+  - alias: "ElternPortal – Neue Schulaufgabe"
     trigger:
       - platform: state
-        entity_id: sensor.elternportal_vertretungsplan
+        entity_id: sensor.elternportal_api_schulaufgaben
+    condition:
+      - condition: template
+        value_template: >
+          {{ trigger.to_state.state | int(0) > trigger.from_state.state | int(0) }}
+    action:
+      - service: notify.mobile_app
+        data:
+          title: "Neue Schulaufgabe"
+          message: >
+            {{ trigger.to_state.state }} Schulaufgaben eingetragen.
+
+  - alias: "ElternPortal – Schwarzes Brett"
+    trigger:
+      - platform: state
+        entity_id: sensor.elternportal_api_schwarzes_brett
     condition:
       - condition: template
         value_template: "{{ trigger.to_state.state | int(0) > 0 }}"
     action:
       - service: notify.mobile_app
         data:
-          title: "Vertretungsplan"
+          title: "Schwarzes Brett"
           message: >
-            {{ trigger.to_state.state }} Einträge im Vertretungsplan.
+            {{ trigger.to_state.state }} Einträge am Schwarzen Brett.
 ```
 
 ---
@@ -100,7 +133,7 @@ automation:
 
 | Problem | Solution |
 |---------|----------|
-| Login fails | Verify the school slug matches the URL of your school's ElternPortal |
+| Login fails | Verify the school slug matches your school URL (e.g. `aegymuc` from `aegymuc.eltern-portal.org`) |
 | No data after setup | Call `elternportal.fetch_data` – there is no automatic polling |
 | Sensor shows 0 | Some schools don't use all features |
 | Parsing issues | HTML structure may vary per school – open an issue with details |

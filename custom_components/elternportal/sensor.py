@@ -13,12 +13,13 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     DOMAIN,
-    SENSOR_LETTERS,
-    SENSOR_BLACKBOARD,
-    SENSOR_MESSAGES,
-    SENSOR_SUBSTITUTION,
-    SENSOR_APPOINTMENTS,
+    SENSOR_SCHOOL_INFO,
     SENSOR_TIMETABLE,
+    SENSOR_EXAMS,
+    SENSOR_APPOINTMENTS,
+    SENSOR_BLACKBOARD,
+    SENSOR_LETTERS,
+    SENSOR_MESSAGES,
     SENSOR_CHILDREN,
     ATTR_ENTRIES,
     ATTR_LAST_FETCH,
@@ -28,35 +29,40 @@ from .coordinator import ElternPortalCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 SENSORS: dict[str, dict[str, str]] = {
-    SENSOR_LETTERS: {
-        "name": "Elternbriefe",
-        "icon": "mdi:email-outline",
-        "data_key": "letters",
+    SENSOR_SCHOOL_INFO: {
+        "name": "Schulinformationen",
+        "icon": "mdi:school-outline",
+        "data_key": "school_info",
     },
-    SENSOR_BLACKBOARD: {
-        "name": "Schwarzes Brett",
-        "icon": "mdi:bulletin-board",
-        "data_key": "blackboard",
+    SENSOR_TIMETABLE: {
+        "name": "Stundenplan",
+        "icon": "mdi:timetable",
+        "data_key": "timetable",
+    },
+    SENSOR_EXAMS: {
+        "name": "Schulaufgaben",
+        "icon": "mdi:clipboard-text-clock-outline",
+        "data_key": "exams",
     },
     SENSOR_APPOINTMENTS: {
         "name": "Termine",
         "icon": "mdi:calendar-school",
         "data_key": "appointments",
     },
+    SENSOR_BLACKBOARD: {
+        "name": "Schwarzes Brett",
+        "icon": "mdi:bulletin-board",
+        "data_key": "blackboard",
+    },
+    SENSOR_LETTERS: {
+        "name": "Elternbriefe",
+        "icon": "mdi:email-outline",
+        "data_key": "letters",
+    },
     SENSOR_MESSAGES: {
-        "name": "Nachrichten",
+        "name": "Kommunikation Fachlehrer",
         "icon": "mdi:message-text-outline",
         "data_key": "messages",
-    },
-    SENSOR_SUBSTITUTION: {
-        "name": "Vertretungsplan",
-        "icon": "mdi:swap-horizontal",
-        "data_key": "substitution",
-    },
-    SENSOR_TIMETABLE: {
-        "name": "Stundenplan",
-        "icon": "mdi:timetable",
-        "data_key": "timetable",
     },
     SENSOR_CHILDREN: {
         "name": "Kinder",
@@ -120,7 +126,10 @@ class ElternPortalSensor(
             return {}
 
         last_fetch = None
-        if hasattr(self.coordinator, "last_update_success_time") and self.coordinator.last_update_success_time:
+        if (
+            hasattr(self.coordinator, "last_update_success_time")
+            and self.coordinator.last_update_success_time
+        ):
             last_fetch = self.coordinator.last_update_success_time.isoformat()
         elif self.coordinator.last_update_success:
             last_fetch = datetime.now().isoformat()
