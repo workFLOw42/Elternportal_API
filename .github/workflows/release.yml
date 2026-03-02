@@ -1,0 +1,130 @@
+name: Auto Tag & Release
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**/manifest.json"
+  workflow_dispatch:
+
+jobs:
+  tag-and-release:
+    name: "Create Tag & Release"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from manifest
+        id: version
+        run: |
+          MANIFEST=$(find custom_components -name "manifest.json" | head -1)
+          echo "📦 Using manifest: ${MANIFEST}"
+
+          VERSION=$(python3 -c "
+          import json
+          with open('${MANIFEST}') as f:
+              print(json.load(f)['version'])
+          ")
+
+          NAME=$(python3 -c "
+          import json
+          with open('${MANIFEST}') as f:
+              print(json.load(f)['name'])
+          ")
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
+          echo "name=${NAME}" >> $GITHUB_OUTPUT
+          echo "📦 ${NAME} v${VERSION}"
+
+      - name: Check if tag already exists
+        id: check
+        run: |
+          if git rev-parse "refs/tags/${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "⏭️ Tag ${{ steps.version.outputs.tag }} already exists – skipping"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "🆕 Tag ${{ steps.version.outputs.tag }} is new"
+          fi
+
+      - name: Create tag
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.version.outputs.tag }}" -m "${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
+          echo "✅ Tag ${{ steps.version.outputs.tag }} created"
+
+      - name: Generate changelog
+        if: steps.check.outputs.exists == 'false'
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -z "$PREV_TAG" ]; then
+            COMMITS=$(git log --oneline --pretty=format:"- %s")
+          else
+            COMMITS=$(git log --oneline --pretty=format:"- %s" ${PREV_TAG}..HEAD)
+          fi
+
+          FEATURES=$(echo "$COMMITS" | grep -iE "^- (feat|feature|add|new)" || true)
+          FIXES=$(echo "$COMMITS" | grep -iE "^- (fix|bugfix|patch|correct)" || true)
+          DOCS=$(echo "$COMMITS" | grep -iE "^- (doc|docs|readme)" || true)
+          CI=$(echo "$COMMITS" | grep -iE "^- (ci|build|chore|bump)" || true)
+          OTHER=$(echo "$COMMITS" | grep -viE "^- (feat|feature|add|new|fix|bugfix|patch|correct|doc|docs|readme|ci|build|chore|bump)" || true)
+
+          {
+            echo "changelog<<EOF"
+            echo "## What's Changed"
+            echo ""
+            if [ -n "$FEATURES" ]; then
+              echo "### ✨ New Features"
+              echo "$FEATURES"
+              echo ""
+            fi
+            if [ -n "$FIXES" ]; then
+              echo "### 🐛 Bug Fixes"
+              echo "$FIXES"
+              echo ""
+            fi
+            if [ -n "$DOCS" ]; then
+              echo "### 📝 Documentation"
+              echo "$DOCS"
+              echo ""
+            fi
+            if [ -n "$CI" ]; then
+              echo "### 🔧 Maintenance"
+              echo "$CI"
+              echo ""
+            fi
+            if [ -n "$OTHER" ]; then
+              echo "### 📦 Other Changes"
+              echo "$OTHER"
+              echo ""
+            fi
+            echo "---"
+            echo ""
+            if [ -n "$PREV_TAG" ]; then
+              echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${{ steps.version.outputs.tag }}"
+            else
+              echo "**Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ steps.version.outputs.tag }}"
+            fi
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "${{ steps.version.outputs.tag }} – ${{ steps.version.outputs.name }}"
+          body: ${{ steps.changelog.outputs.changelog }}
+          draft: false
+          prerelease: false

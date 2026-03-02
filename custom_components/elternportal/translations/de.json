@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "ElternPortal API",
+        "description": "Geben Sie Ihre ElternPortal-Zugangsdaten ein. Der Schul-Slug ist die Subdomain Ihrer Schule (z.B. 'gymnasium-musterstadt' von gymnasium-musterstadt.eltern-portal.org).",
+        "data": {
+          "school_slug": "Schul-Slug (Subdomain)",
+          "username": "Benutzername (E-Mail)",
+          "password": "Passwort"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung fehlgeschlagen",
+      "invalid_auth": "Ungültige Zugangsdaten",
+      "unknown": "Unerwarteter Fehler"
+    },
+    "abort": {
+      "already_configured": "Bereits konfiguriert"
+    }
+  }
+}

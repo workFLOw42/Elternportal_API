@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "ElternPortal API",
+        "description": "Enter your ElternPortal credentials. The school slug is the subdomain of your school (e.g. 'gymnasium-musterstadt' from gymnasium-musterstadt.eltern-portal.org).",
+        "data": {
+          "school_slug": "School slug (subdomain)",
+          "username": "Username (email)",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid credentials",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "Already configured"
+    }
+  }
+}
