@@ -89,6 +89,15 @@ def _slugify(text: str) -> str:
     return text
 
 
+def _build_entity_id(slug: str, child_name: str, sensor_type: str) -> str:
+    """Build consistent entity ID part: aegymuc_sfg_schulaufgaben."""
+    parts = [_slugify(slug)]
+    if child_name:
+        parts.append(_slugify(child_name))
+    parts.append(_slugify(sensor_type))
+    return "_".join(parts)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -124,14 +133,48 @@ class ElternPortalSensor(
     ) -> None:
         """Initialize."""
         super().__init__(coordinator)
+
         self._data_key = description["data_key"]
         self._sensor_type = sensor_type
         self._description = description
         self._entry = entry
         self._attr_icon = description["icon"]
 
-        # Build unique_id (stable, does not change)
+        # Child name from config data (set during setup flow)
+        child_name = entry.data.get(CONF_CHILD_NAME, "")
+
+        # Stable unique_id (never changes)
         self._attr_unique_id = f"{entry.entry_id}_{sensor_type}"
+
+        # Entity ID: sensor.aegymuc_sfg_schulaufgaben
+        slug = entry.data.get(CONF_SCHOOL_SLUG, "elternportal")
+        sensor_label = description["name"]
+        entity_slug = _build_entity_id(slug, child_name, sensor_label)
+        self.entity_id = f"sensor.{entity_slug}"
+
+        # Friendly name: aegymuc SFG Schulaufgaben
+        if child_name:
+            self._attr_name = f"{slug} {child_name} {sensor_label}"
+        else:
+            self._attr_name = f"{slug} {sensor_label}"
+
+    def _get_child_name(self) -> str:
+        """Get child name from options, config data, or coordinator."""
+        # 1. From options (user reconfigured)
+        child = self._entry.options.get(CONF_CHILD_NAME, "")
+        if child:
+            return child
+
+        # 2. From config data (set during setup)
+        child = self._entry.data.get(CONF_CHILD_NAME, "")
+        if child:
+            return child
+
+        # 3. Auto-detected from coordinator
+        if self.coordinator.child_name:
+            return self.coordinator.child_name
+
+        return ""
 
     @property
     def name(self) -> str:
@@ -144,22 +187,12 @@ class ElternPortalSensor(
             return f"{slug} {child} {sensor_name}"
         return f"{slug} {sensor_name}"
 
-    def _get_child_name(self) -> str:
-        """Get child name from options, coordinator, or empty."""
-        # 1. From options (user configured)
-        child = self._entry.options.get(CONF_CHILD_NAME, "")
-        if child:
-            return child
-        # 2. Auto-detected from coordinator
-        if self.coordinator.child_name:
-            return self.coordinator.child_name
-        return ""
-
     @property
     def native_value(self) -> int | None:
         """Return the number of items."""
         if self.coordinator.data is None:
             return None
+
         data = self.coordinator.data.get(self._data_key, [])
         if isinstance(data, list):
             return len(data)
