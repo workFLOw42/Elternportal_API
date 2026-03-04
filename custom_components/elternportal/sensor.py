@@ -33,6 +33,14 @@ from .coordinator import ElternPortalCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+# Fields to strip from entries to stay under 16KB recorder limit
+STRIP_FIELDS: dict[str, set[str]] = {
+    "letters": {"body", "link"},
+    "blackboard": {"content"},
+    "messages": {"body"},
+    "school_info": {"details"},
+}
+
 SENSORS: dict[str, dict[str, str]] = {
     SENSOR_SCHOOL_INFO: {
         "name": "Schulinformationen",
@@ -96,6 +104,19 @@ def _build_entity_id(slug: str, child_name: str, sensor_type: str) -> str:
         parts.append(_slugify(child_name))
     parts.append(_slugify(sensor_type))
     return "_".join(parts)
+
+
+def _slim_entries(data_key: str, entries: list[dict]) -> list[dict]:
+    """Remove large text fields to stay under recorder 16KB limit."""
+    fields_to_strip = STRIP_FIELDS.get(data_key)
+    if not fields_to_strip or not entries:
+        return entries
+
+    slim = []
+    for entry in entries:
+        slim_entry = {k: v for k, v in entry.items() if k not in fields_to_strip}
+        slim.append(slim_entry)
+    return slim
 
 
 async def async_setup_entry(
@@ -176,6 +197,15 @@ class ElternPortalSensor(
 
         return ""
 
+    def _get_entries(self) -> list:
+        """Get entries for this sensor."""
+        if self.coordinator.data is None:
+            return []
+        data = self.coordinator.data.get(self._data_key, [])
+        if isinstance(data, list):
+            return data
+        return []
+
     @property
     def name(self) -> str:
         """Return the sensor name: [slug] [child_name] [sensor_name]."""
@@ -193,17 +223,18 @@ class ElternPortalSensor(
         if self.coordinator.data is None:
             return None
 
-        data = self.coordinator.data.get(self._data_key, [])
-        if isinstance(data, list):
-            return len(data)
-        return None
+        entries = self._get_entries()
+        return len(entries) if entries else 0
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return the full list of items as attribute."""
+        """Return slim entries and metadata as attributes."""
         if self.coordinator.data is None:
             return {}
 
+        entries = self._get_entries()
+
+        # Last fetch timestamp
         last_fetch = None
         if (
             hasattr(self.coordinator, "last_update_success_time")
@@ -213,11 +244,23 @@ class ElternPortalSensor(
         elif self.coordinator.last_update_success:
             last_fetch = datetime.now().isoformat()
 
+        # Slim entries: remove body/content/link to stay under 16KB
+        slim = _slim_entries(self._data_key, entries)
+
         attrs: dict[str, Any] = {
-            ATTR_ENTRIES: self.coordinator.data.get(self._data_key, []),
+            ATTR_ENTRIES: slim,
             ATTR_LAST_FETCH: last_fetch,
         }
 
+        # Unacknowledged count for letters
+        if self._data_key == "letters":
+            unread = sum(
+                1 for e in entries
+                if isinstance(e, dict) and not e.get("acknowledged", True)
+            )
+            attrs["unread_count"] = unread
+
+        # Child & class info
         child_name = self._get_child_name()
         if child_name:
             attrs[ATTR_CHILD_NAME] = child_name

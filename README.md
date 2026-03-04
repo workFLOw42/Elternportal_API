@@ -37,17 +37,19 @@
 | **Schulaufgaben** | Exam schedule (Schulaufgaben, Tests, Kurzarbeiten) | 📝 |
 | **Termine** | General school appointments & events | 📆 |
 | **Schwarzes Brett** | Bulletin board messages (active + archived) | 📌 |
-| **Elternbriefe** | Parent letters with read/unread status | ✉️ |
+| **Elternbriefe** | Parent letters with unread count & metadata | ✉️ |
 | **Kommunikation Fachlehrer** | Teacher communication messages | 💬 |
 | **Umfragen** | Surveys & polls with voting status | 📊 |
 
 ### Additional Features
 
-- 🧒 **Automatic child detection** – name and class are auto-detected from the portal
-- 🏷️ **Smart sensor naming** – sensors are named `[school_slug] [child_name] [sensor]`
-- ⚙️ **Options flow** – configure child name via UI (Settings → Integrations → Configure)
+- 🧒 **Child name in setup flow** – set a name or short code during initial setup for consistent entity IDs
+- 🏷️ **Smart sensor naming** – entity IDs follow `sensor.[slug]_[child]_[sensor]` pattern
+- 👨‍👩‍👧‍👦 **Multi-child support** – add the integration multiple times, one per child
+- ⚙️ **Options flow** – change display name via UI (Settings → Integrations → Configure)
 - 🔄 **Manual fetch** – data is fetched on demand via `elternportal.fetch_data` service
 - 🔐 **Secure authentication** – CSRF-token based login with session management
+- 📏 **Recorder-safe** – large text fields (body, content) are stripped from attributes to stay under 16KB
 
 ---
 
@@ -71,7 +73,9 @@
 
 ## ⚙️ Configuration
 
-### Initial Setup
+### Initial Setup (2 Steps)
+
+**Step 1 – Credentials:**
 
 1. Go to **Settings** → **Devices & Services** → **Add Integration**
 2. Search for **ElternPortal API**
@@ -86,12 +90,31 @@
 > 💡 The school slug is the part before `.eltern-portal.org` in your school's URL.
 > For example: `https://aegymuc.eltern-portal.org` → slug is `aegymuc`
 
-### Options (Child Name)
+**Step 2 – Child Name:**
+
+4. Enter a **name or short code** for your child
+
+| Input | Entity ID Example | Friendly Name |
+|---|---|---|
+| `SFG` | `sensor.aegymuc_sfg_schulaufgaben` | aegymuc SFG Schulaufgaben |
+| `Samuel Greiffert` | `sensor.aegymuc_samuel_greiffert_schulaufgaben` | aegymuc Samuel Greiffert Schulaufgaben |
+| *(empty)* | `sensor.aegymuc_schulaufgaben` | aegymuc Schulaufgaben |
+
+> ⚠️ **Entity IDs are set during initial setup and cannot be changed later.** Choose wisely – especially when you have multiple children at the same school.
+
+### Multiple Children
+
+Add the integration once per child:
+
+1. **Settings** → **Devices & Services** → **Add Integration** → **ElternPortal API**
+2. Use the **same credentials** but a **different child name** (e.g. `SFG` and `LFG`)
+3. Each child gets its own set of sensors with unique entity IDs
+
+### Options (Display Name)
 
 1. Go to **Settings** → **Devices & Services**
 2. Find **ElternPortal API** and click **Configure**
-3. Enter the **child name** (used in sensor naming)
-4. Leave empty for automatic detection
+3. Change the **display name** (affects friendly name only, not entity IDs)
 
 ---
 
@@ -126,7 +149,7 @@ Go to **Developer Tools** → **Services** → search for `elternportal.fetch_da
 
 ## 📊 Sensor Details
 
-Each sensor shows the **number of entries** as its state and provides the **full data** in the `entries` attribute.
+Each sensor shows the **number of entries** as its state. Attributes contain **metadata only** – large text fields (body, content, links) are stripped to stay under the Home Assistant recorder limit of 16KB.
 
 ### Example: Schulaufgaben Sensor
 
@@ -144,7 +167,7 @@ entries:
     description: "Schulaufgabe in Mathematik (GEI)"
     month: "März"
     year: "2026"
-child_name: "Samuel Greiffert"
+child_name: "SFG"
 class_name: "6D"
 last_fetch: "2026-03-04T10:28:53.344191"
 ```
@@ -169,7 +192,13 @@ entries:
     acknowledged: true
     has_file: true
     classes: "Klasse/n: 6D"
+unread_count: 3
+child_name: "SFG"
+class_name: "6D"
+last_fetch: "2026-03-04T12:41:17.144487"
 ```
+
+> 💡 The `unread_count` attribute shows the number of unacknowledged letters. The `body` and `link` fields are intentionally excluded from attributes to prevent recorder database issues.
 
 ### Example: Schwarzes Brett Sensor
 
@@ -187,8 +216,12 @@ entries:
   - title: "Versand des 2. Leistungsstandberichts"
     date: "12.02.2026 - 12.02.2026"
     archived: true
-    content: "Sehr geehrte Eltern und Erziehungsberechtigte, ..."
+child_name: "SFG"
+class_name: "6D"
+last_fetch: "2026-03-04T12:41:17.144487"
 ```
+
+> 💡 The `content` field is excluded from Schwarzes Brett attributes. Only metadata (title, date, archived status, attachment info) is stored.
 
 ---
 
@@ -200,7 +233,7 @@ entries:
 type: markdown
 title: 📝 Nächste Schulaufgaben
 content: >
-  {% set exams = state_attr('sensor.aegymuc_samuel_greiffert_schulaufgaben', 'entries') %}
+  {% set exams = state_attr('sensor.aegymuc_sfg_schulaufgaben', 'entries') %}
   {% if exams %}
   {% for exam in exams[:5] %}
   - **{{ exam.date }}** – {{ exam.description }}
@@ -216,7 +249,9 @@ content: >
 type: markdown
 title: ✉️ Ungelesene Elternbriefe
 content: >
-  {% set letters = state_attr('sensor.aegymuc_samuel_greiffert_elternbriefe', 'entries') %}
+  {% set unread = state_attr('sensor.aegymuc_sfg_elternbriefe', 'unread_count') %}
+  {% set letters = state_attr('sensor.aegymuc_sfg_elternbriefe', 'entries') %}
+  **{{ unread }} ungelesene Briefe**
   {% if letters %}
   {% for letter in letters if not letter.acknowledged %}
   - **{{ letter.title }}** ({{ letter.date }})
@@ -232,7 +267,7 @@ content: >
 type: markdown
 title: 📊 Offene Umfragen
 content: >
-  {% set surveys = state_attr('sensor.aegymuc_samuel_greiffert_umfragen', 'entries') %}
+  {% set surveys = state_attr('sensor.aegymuc_sfg_umfragen', 'entries') %}
   {% if surveys %}
   {% for survey in surveys if not survey.voted %}
   - **{{ survey.title }}** (bis {{ survey.end_date }})
@@ -252,7 +287,8 @@ content: >
 | **No data after setup** | Call the `elternportal.fetch_data` service manually |
 | **Sensors show 0** | Check HA logs for parsing errors: **Settings → System → Logs** |
 | **CSRF token error** | The portal may be temporarily unavailable – retry later |
-| **Wrong child name** | Configure via **Settings → Integrations → ElternPortal → Configure** |
+| **Wrong child name** | Entity IDs are set at setup – delete & re-add integration to change |
+| **Recorder 16KB warning** | Should not occur – if it does, check for custom parser changes |
 
 ### Enable Debug Logging
 
@@ -266,6 +302,14 @@ logger:
 ---
 
 ## 📋 Changelog
+
+### v2.1.1 (2026-03-04)
+
+- 🧒 **Child name in setup flow** – set name/short code during initial setup for consistent entity IDs
+- 👨‍👩‍👧‍👦 **Multi-child support** – add integration multiple times with different child names
+- 📏 **Recorder-safe attributes** – large text fields stripped to stay under 16KB limit
+- 🆕 **Unread count** – `unread_count` attribute on Elternbriefe sensor
+- 🐛 **Fixed**: OptionsFlow compatibility with HA 2024.x+ (removed manual config_entry assignment)
 
 ### v2.0.0 (2025-03-04)
 
