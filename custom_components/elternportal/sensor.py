@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime
 from typing import Any
 
@@ -12,17 +13,21 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
-    DOMAIN,
-    SENSOR_SCHOOL_INFO,
-    SENSOR_TIMETABLE,
-    SENSOR_EXAMS,
-    SENSOR_APPOINTMENTS,
-    SENSOR_BLACKBOARD,
-    SENSOR_LETTERS,
-    SENSOR_MESSAGES,
-    SENSOR_CHILDREN,
+    ATTR_CHILD_NAME,
+    ATTR_CLASS_NAME,
     ATTR_ENTRIES,
     ATTR_LAST_FETCH,
+    CONF_CHILD_NAME,
+    CONF_SCHOOL_SLUG,
+    DOMAIN,
+    SENSOR_APPOINTMENTS,
+    SENSOR_BLACKBOARD,
+    SENSOR_EXAMS,
+    SENSOR_LETTERS,
+    SENSOR_MESSAGES,
+    SENSOR_SCHOOL_INFO,
+    SENSOR_SURVEYS,
+    SENSOR_TIMETABLE,
 )
 from .coordinator import ElternPortalCoordinator
 
@@ -46,7 +51,7 @@ SENSORS: dict[str, dict[str, str]] = {
     },
     SENSOR_APPOINTMENTS: {
         "name": "Termine",
-        "icon": "mdi:calendar-school",
+        "icon": "mdi:calendar-clock",
         "data_key": "appointments",
     },
     SENSOR_BLACKBOARD: {
@@ -64,12 +69,24 @@ SENSORS: dict[str, dict[str, str]] = {
         "icon": "mdi:message-text-outline",
         "data_key": "messages",
     },
-    SENSOR_CHILDREN: {
-        "name": "Kinder",
-        "icon": "mdi:account-child",
-        "data_key": "children",
+    SENSOR_SURVEYS: {
+        "name": "Umfragen",
+        "icon": "mdi:poll",
+        "data_key": "surveys",
     },
 }
+
+
+def _slugify(text: str) -> str:
+    """Create a slug from text."""
+    text = text.lower().strip()
+    text = re.sub(r"[äÄ]", "ae", text)
+    text = re.sub(r"[öÖ]", "oe", text)
+    text = re.sub(r"[üÜ]", "ue", text)
+    text = re.sub(r"[ß]", "ss", text)
+    text = re.sub(r"[^a-z0-9]+", "_", text)
+    text = text.strip("_")
+    return text
 
 
 async def async_setup_entry(
@@ -96,7 +113,7 @@ class ElternPortalSensor(
 ):
     """A single ElternPortal API sensor."""
 
-    _attr_has_entity_name = True
+    _attr_has_entity_name = False
 
     def __init__(
         self,
@@ -108,16 +125,45 @@ class ElternPortalSensor(
         """Initialize."""
         super().__init__(coordinator)
         self._data_key = description["data_key"]
-        self._attr_unique_id = f"{entry.entry_id}_{sensor_type}"
-        self._attr_name = description["name"]
+        self._sensor_type = sensor_type
+        self._description = description
+        self._entry = entry
         self._attr_icon = description["icon"]
+
+        # Build unique_id (stable, does not change)
+        self._attr_unique_id = f"{entry.entry_id}_{sensor_type}"
+
+    @property
+    def name(self) -> str:
+        """Return the sensor name: [slug] [child_name] [sensor_name]."""
+        slug = self._entry.data.get(CONF_SCHOOL_SLUG, "elternportal")
+        child = self._get_child_name()
+        sensor_name = self._description["name"]
+
+        if child:
+            return f"{slug} {child} {sensor_name}"
+        return f"{slug} {sensor_name}"
+
+    def _get_child_name(self) -> str:
+        """Get child name from options, coordinator, or empty."""
+        # 1. From options (user configured)
+        child = self._entry.options.get(CONF_CHILD_NAME, "")
+        if child:
+            return child
+        # 2. Auto-detected from coordinator
+        if self.coordinator.child_name:
+            return self.coordinator.child_name
+        return ""
 
     @property
     def native_value(self) -> int | None:
         """Return the number of items."""
         if self.coordinator.data is None:
             return None
-        return len(self.coordinator.data.get(self._data_key, []))
+        data = self.coordinator.data.get(self._data_key, [])
+        if isinstance(data, list):
+            return len(data)
+        return None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -134,7 +180,17 @@ class ElternPortalSensor(
         elif self.coordinator.last_update_success:
             last_fetch = datetime.now().isoformat()
 
-        return {
+        attrs: dict[str, Any] = {
             ATTR_ENTRIES: self.coordinator.data.get(self._data_key, []),
             ATTR_LAST_FETCH: last_fetch,
         }
+
+        child_name = self._get_child_name()
+        if child_name:
+            attrs[ATTR_CHILD_NAME] = child_name
+
+        class_name = self.coordinator.class_name
+        if class_name:
+            attrs[ATTR_CLASS_NAME] = class_name
+
+        return attrs

@@ -8,10 +8,10 @@ DOMAIN: Final = "elternportal"
 CONF_SCHOOL_SLUG: Final = "school_slug"
 CONF_USERNAME: Final = "username"
 CONF_PASSWORD: Final = "password"
+CONF_CHILD_NAME: Final = "child_name"
 
 # API
 BASE_URL_TEMPLATE: Final = "https://{}.eltern-portal.org"
-
 ENDPOINT_LOGIN: Final = "/includes/project/auth/login.php"
 ENDPOINT_LOGOUT: Final = "/includes/project/auth/logout.php"
 
@@ -23,7 +23,7 @@ PATH_APPOINTMENTS: Final = "/service/termine/liste/allgemein"
 PATH_BLACKBOARD: Final = "/aktuelles/schwarzes_brett"
 PATH_LETTERS: Final = "/aktuelles/elternbriefe"
 PATH_MESSAGES: Final = "/meldungen/kommunikation_fachlehrer"
-PATH_CHILDREN: Final = "/service/kinder"
+PATH_SURVEYS: Final = "/aktuelles/umfragen"
 
 # Service
 SERVICE_FETCH_DATA: Final = "fetch_data"
@@ -36,8 +36,10 @@ SENSOR_APPOINTMENTS: Final = "appointments"
 SENSOR_BLACKBOARD: Final = "blackboard"
 SENSOR_LETTERS: Final = "letters"
 SENSOR_MESSAGES: Final = "messages"
-SENSOR_CHILDREN: Final = "children"
+SENSOR_SURVEYS: Final = "surveys"
 
 # Attribute keys
 ATTR_ENTRIES: Final = "entries"
 ATTR_LAST_FETCH: Final = "last_fetch"
+ATTR_CHILD_NAME: Final = "child_name"
+ATTR_CLASS_NAME: Final = "class_name"

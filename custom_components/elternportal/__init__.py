@@ -11,10 +11,10 @@ from homeassistant.core import HomeAssistant, ServiceCall
 
 from .api import ElternPortalApi
 from .const import (
-    DOMAIN,
+    CONF_PASSWORD,
     CONF_SCHOOL_SLUG,
     CONF_USERNAME,
-    CONF_PASSWORD,
+    DOMAIN,
     SERVICE_FETCH_DATA,
 )
 from .coordinator import ElternPortalCoordinator
@@ -39,6 +39,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    # Reload on options change
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+
     # ---- Service: elternportal.fetch_data ----
     async def handle_fetch_data(call: ServiceCall) -> None:
         """Handle the fetch_data service call."""
@@ -57,12 +60,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
+async def _async_update_listener(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> None:
+    """Handle options update."""
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(
         entry, PLATFORMS
     ):
-        coordinator: ElternPortalCoordinator = hass.data[DOMAIN].pop(entry.entry_id)
+        coordinator: ElternPortalCoordinator = hass.data[DOMAIN].pop(
+            entry.entry_id
+        )
         await coordinator.api.close()
 
     # Remove service when no entries left

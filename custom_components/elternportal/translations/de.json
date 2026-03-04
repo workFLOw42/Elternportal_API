@@ -19,5 +19,16 @@
     "abort": {
       "already_configured": "Bereits konfiguriert"
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "ElternPortal Optionen",
+        "description": "Konfigurieren Sie den Kindernamen. Dieser wird in den Sensornamen verwendet (z.B. sensor.aegymuc_samuel_schulaufgaben). Leer lassen für automatische Erkennung.",
+        "data": {
+          "child_name": "Name des Kindes"
+        }
+      }
+    }
   }
 }

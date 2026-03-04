@@ -6,10 +6,22 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
+from homeassistant.core import callback
 
 from .api import ElternPortalApi, ElternPortalAuthError, ElternPortalApiError
-from .const import DOMAIN, CONF_SCHOOL_SLUG, CONF_USERNAME, CONF_PASSWORD
+from .const import (
+    CONF_CHILD_NAME,
+    CONF_PASSWORD,
+    CONF_SCHOOL_SLUG,
+    CONF_USERNAME,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,6 +38,14 @@ class ElternPortalConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for ElternPortal API."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: ConfigEntry,
+    ) -> ElternPortalOptionsFlow:
+        """Get the options flow."""
+        return ElternPortalOptionsFlow(config_entry)
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -44,7 +64,6 @@ class ElternPortalConfigFlow(ConfigFlow, domain=DOMAIN):
                 username=user_input[CONF_USERNAME],
                 password=user_input[CONF_PASSWORD],
             )
-
             try:
                 if not await api.test_connection():
                     errors["base"] = "invalid_auth"
@@ -60,7 +79,7 @@ class ElternPortalConfigFlow(ConfigFlow, domain=DOMAIN):
 
             if not errors:
                 return self.async_create_entry(
-                    title=f"ElternPortal API ({user_input[CONF_SCHOOL_SLUG]})",
+                    title=f"ElternPortal ({user_input[CONF_SCHOOL_SLUG]})",
                     data=user_input,
                 )
 
@@ -68,4 +87,33 @@ class ElternPortalConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=DATA_SCHEMA,
             errors=errors,
+        )
+
+
+class ElternPortalOptionsFlow(OptionsFlow):
+    """Handle options for ElternPortal API."""
+
+    def __init__(self, config_entry: ConfigEntry) -> None:
+        """Initialize."""
+        self.config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle the options step."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        current_child = self.config_entry.options.get(CONF_CHILD_NAME, "")
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_CHILD_NAME,
+                        default=current_child,
+                    ): str,
+                }
+            ),
         )
