@@ -25,7 +25,7 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-DATA_SCHEMA = vol.Schema(
+CREDENTIALS_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_SCHOOL_SLUG): str,
         vol.Required(CONF_USERNAME): str,
@@ -39,18 +39,22 @@ class ElternPortalConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    def __init__(self) -> None:
+        """Initialize."""
+        self._user_input: dict[str, Any] = {}
+
     @staticmethod
     @callback
     def async_get_options_flow(
         config_entry: ConfigEntry,
     ) -> ElternPortalOptionsFlow:
         """Get the options flow."""
-        return ElternPortalOptionsFlow(config_entry)
+        return ElternPortalOptionsFlow()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle the initial step."""
+        """Step 1: Credentials."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -64,6 +68,7 @@ class ElternPortalConfigFlow(ConfigFlow, domain=DOMAIN):
                 username=user_input[CONF_USERNAME],
                 password=user_input[CONF_PASSWORD],
             )
+
             try:
                 if not await api.test_connection():
                     errors["base"] = "invalid_auth"
@@ -78,24 +83,46 @@ class ElternPortalConfigFlow(ConfigFlow, domain=DOMAIN):
                 await api.close()
 
             if not errors:
-                return self.async_create_entry(
-                    title=f"ElternPortal ({user_input[CONF_SCHOOL_SLUG]})",
-                    data=user_input,
-                )
+                self._user_input = user_input
+                return await self.async_step_child()
 
         return self.async_show_form(
             step_id="user",
-            data_schema=DATA_SCHEMA,
+            data_schema=CREDENTIALS_SCHEMA,
             errors=errors,
+        )
+
+    async def async_step_child(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Step 2: Child name for sensor naming."""
+        if user_input is not None:
+            child_name = user_input.get(CONF_CHILD_NAME, "").strip()
+            self._user_input[CONF_CHILD_NAME] = child_name
+
+            slug = self._user_input[CONF_SCHOOL_SLUG]
+            if child_name:
+                title = f"ElternPortal ({slug} – {child_name})"
+            else:
+                title = f"ElternPortal ({slug})"
+
+            return self.async_create_entry(
+                title=title,
+                data=self._user_input,
+            )
+
+        return self.async_show_form(
+            step_id="child",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(CONF_CHILD_NAME, default=""): str,
+                }
+            ),
         )
 
 
 class ElternPortalOptionsFlow(OptionsFlow):
     """Handle options for ElternPortal API."""
-
-    def __init__(self, config_entry: ConfigEntry) -> None:
-        """Initialize."""
-        self.config_entry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -104,7 +131,10 @@ class ElternPortalOptionsFlow(OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        current_child = self.config_entry.options.get(CONF_CHILD_NAME, "")
+        current_child = self.config_entry.options.get(
+            CONF_CHILD_NAME,
+            self.config_entry.data.get(CONF_CHILD_NAME, ""),
+        )
 
         return self.async_show_form(
             step_id="init",

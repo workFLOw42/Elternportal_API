@@ -2,12 +2,19 @@
   "config": {
     "step": {
       "user": {
-        "title": "ElternPortal API",
+        "title": "ElternPortal Login",
         "description": "Enter your ElternPortal credentials. The school slug is the subdomain of your school (e.g. 'gymnasium-musterstadt' from gymnasium-musterstadt.eltern-portal.org).",
         "data": {
           "school_slug": "School slug (subdomain)",
           "username": "Username (email)",
           "password": "Password"
+        }
+      },
+      "child": {
+        "title": "Child Name",
+        "description": "Enter a name or short code for your child. This determines the sensor entity IDs (e.g. 'SFG' → sensor.aegymuc_sfg_schulaufgaben). Leave empty for auto-detection from the portal.",
+        "data": {
+          "child_name": "Child name / short code"
         }
       }
     },
@@ -24,7 +31,7 @@
     "step": {
       "init": {
         "title": "ElternPortal Options",
-        "description": "Configure the child name. This will be used in sensor names (e.g. sensor.aegymuc_samuel_schulaufgaben). Leave empty for auto-detection.",
+        "description": "Change the child name used in sensor friendly names. Note: Entity IDs are set during initial setup and cannot be changed here.",
         "data": {
           "child_name": "Child name"
         }
