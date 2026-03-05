@@ -83,12 +83,12 @@
 
 | Field | Description | Example |
 |---|---|---|
-| **School slug** | Subdomain of your school's Eltern-Portal URL | `aegymuc` |
+| **School slug** | Subdomain of your school's Eltern-Portal URL | `gymnasium-musterstadt` |
 | **Username** | Your login email | `parent@example.com` |
 | **Password** | Your login password | `••••••••` |
 
 > 💡 The school slug is the part before `.eltern-portal.org` in your school's URL.
-> For example: `https://aegymuc.eltern-portal.org` → slug is `aegymuc`
+> For example: `https://gymnasium-musterstadt.eltern-portal.org` → slug is `gymnasium-musterstadt`
 
 **Step 2 – Child Name:**
 
@@ -96,9 +96,9 @@
 
 | Input | Entity ID Example | Friendly Name |
 |---|---|---|
-| `SFG` | `sensor.aegymuc_sfg_schulaufgaben` | aegymuc SFG Schulaufgaben |
-| `Samuel Greiffert` | `sensor.aegymuc_samuel_greiffert_schulaufgaben` | aegymuc Samuel Greiffert Schulaufgaben |
-| *(empty)* | `sensor.aegymuc_schulaufgaben` | aegymuc Schulaufgaben |
+| `MAX` | `sensor.gymnasium_musterstadt_max_schulaufgaben` | gymnasium-musterstadt MAX Schulaufgaben |
+| `Lisa M` | `sensor.gymnasium_musterstadt_lisa_m_schulaufgaben` | gymnasium-musterstadt Lisa M Schulaufgaben |
+| *(empty)* | `sensor.gymnasium_musterstadt_schulaufgaben` | gymnasium-musterstadt Schulaufgaben |
 
 > ⚠️ **Entity IDs are set during initial setup and cannot be changed later.** Choose wisely – especially when you have multiple children at the same school.
 
@@ -107,7 +107,7 @@
 Add the integration once per child:
 
 1. **Settings** → **Devices & Services** → **Add Integration** → **ElternPortal API**
-2. Use the **same credentials** but a **different child name** (e.g. `SFG` and `LFG`)
+2. Use the **same credentials** but a **different child name**
 3. Each child gets its own set of sensors with unique entity IDs
 
 ### Options (Display Name)
@@ -167,8 +167,8 @@ entries:
     description: "Schulaufgabe in Mathematik (GEI)"
     month: "März"
     year: "2026"
-child_name: "SFG"
-class_name: "6D"
+child_name: "MAX"
+class_name: "7B"
 last_fetch: "2026-03-04T10:28:53.344191"
 ```
 
@@ -181,20 +181,20 @@ last_fetch: "2026-03-04T10:28:53.344191"
 ```yaml
 entries:
   - number: "#94"
-    title: "Tag der Demokratie am 18.März 2026"
+    title: "Elternabend am 18. März"
     date: "03.03.2026 14:08:24"
     acknowledged: false
     has_file: true
-    classes: "Klasse/n: 6D"
+    classes: "Klasse/n: 7B"
   - number: "#93"
-    title: "Terminübersicht zu den medienpädagogischen Elternabenden"
+    title: "Terminübersicht Elternabende"
     date: "27.02.2026 14:53:35"
     acknowledged: true
     has_file: true
-    classes: "Klasse/n: 6D"
+    classes: "Klasse/n: 7B"
 unread_count: 3
-child_name: "SFG"
-class_name: "6D"
+child_name: "MAX"
+class_name: "7B"
 last_fetch: "2026-03-04T12:41:17.144487"
 ```
 
@@ -208,16 +208,16 @@ last_fetch: "2026-03-04T12:41:17.144487"
 
 ```yaml
 entries:
-  - title: "Nachhilfe am AEG"
+  - title: "Nachhilfe-Angebot"
     date: "11.03.2025 00:00:00"
     archived: false
     has_attachment: true
-    attachment: "Nachhilfe am AEG.docx herunterladen"
-  - title: "Versand des 2. Leistungsstandberichts"
+    attachment: "Nachhilfe.docx herunterladen"
+  - title: "Leistungsstandbericht"
     date: "12.02.2026 - 12.02.2026"
     archived: true
-child_name: "SFG"
-class_name: "6D"
+child_name: "MAX"
+class_name: "7B"
 last_fetch: "2026-03-04T12:41:17.144487"
 ```
 
@@ -233,7 +233,7 @@ last_fetch: "2026-03-04T12:41:17.144487"
 type: markdown
 title: 📝 Nächste Schulaufgaben
 content: >
-  {% set exams = state_attr('sensor.aegymuc_sfg_schulaufgaben', 'entries') %}
+  {% set exams = state_attr('sensor.gymnasium_musterstadt_max_schulaufgaben', 'entries') %}
   {% if exams %}
   {% for exam in exams[:5] %}
   - **{{ exam.date }}** – {{ exam.description }}
@@ -249,8 +249,8 @@ content: >
 type: markdown
 title: ✉️ Ungelesene Elternbriefe
 content: >
-  {% set unread = state_attr('sensor.aegymuc_sfg_elternbriefe', 'unread_count') %}
-  {% set letters = state_attr('sensor.aegymuc_sfg_elternbriefe', 'entries') %}
+  {% set unread = state_attr('sensor.gymnasium_musterstadt_max_elternbriefe', 'unread_count') %}
+  {% set letters = state_attr('sensor.gymnasium_musterstadt_max_elternbriefe', 'entries') %}
   **{{ unread }} ungelesene Briefe**
   {% if letters %}
   {% for letter in letters if not letter.acknowledged %}
@@ -267,7 +267,7 @@ content: >
 type: markdown
 title: 📊 Offene Umfragen
 content: >
-  {% set surveys = state_attr('sensor.aegymuc_sfg_umfragen', 'entries') %}
+  {% set surveys = state_attr('sensor.gymnasium_musterstadt_max_umfragen', 'entries') %}
   {% if surveys %}
   {% for survey in surveys if not survey.voted %}
   - **{{ survey.title }}** (bis {{ survey.end_date }})
@@ -303,13 +303,13 @@ logger:
 
 ## 📋 Changelog
 
-### v2.1.1 (2026-03-04)
+### v2.2.0
 
 - 🧒 **Child name in setup flow** – set name/short code during initial setup for consistent entity IDs
 - 👨‍👩‍👧‍👦 **Multi-child support** – add integration multiple times with different child names
 - 📏 **Recorder-safe attributes** – large text fields stripped to stay under 16KB limit
 - 🆕 **Unread count** – `unread_count` attribute on Elternbriefe sensor
-- 🐛 **Fixed**: OptionsFlow compatibility with HA 2024.x+ (removed manual config_entry assignment)
+- 🐛 **Fixed**: OptionsFlow compatibility with HA 2024.x+
 
 ### v2.0.0 (2025-03-04)
 

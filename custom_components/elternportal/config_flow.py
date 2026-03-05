@@ -106,10 +106,7 @@ class ElternPortalConfigFlow(ConfigFlow, domain=DOMAIN):
             else:
                 title = f"ElternPortal ({slug})"
 
-            return self.async_create_entry(
-                title=title,
-                data=self._user_input,
-            )
+            return self.async_create_entry(title=title, data=self._user_input)
 
         return self.async_show_form(
             step_id="child",
@@ -140,10 +137,7 @@ class ElternPortalOptionsFlow(OptionsFlow):
             step_id="init",
             data_schema=vol.Schema(
                 {
-                    vol.Optional(
-                        CONF_CHILD_NAME,
-                        default=current_child,
-                    ): str,
+                    vol.Optional(CONF_CHILD_NAME, default=current_child): str,
                 }
             ),
         )

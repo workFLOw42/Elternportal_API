@@ -32,7 +32,7 @@ class ElternPortalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=None,  # No automatic polling
+            update_interval=None,
         )
         self.api = api
 

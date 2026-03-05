@@ -33,7 +33,6 @@ from .coordinator import ElternPortalCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-# Fields to strip from entries to stay under 16KB recorder limit
 STRIP_FIELDS: dict[str, set[str]] = {
     "letters": {"body", "link"},
     "blackboard": {"content"},
@@ -98,7 +97,7 @@ def _slugify(text: str) -> str:
 
 
 def _build_entity_id(slug: str, child_name: str, sensor_type: str) -> str:
-    """Build consistent entity ID part: aegymuc_sfg_schulaufgaben."""
+    """Build consistent entity ID part."""
     parts = [_slugify(slug)]
     if child_name:
         parts.append(_slugify(child_name))
@@ -111,7 +110,6 @@ def _slim_entries(data_key: str, entries: list[dict]) -> list[dict]:
     fields_to_strip = STRIP_FIELDS.get(data_key)
     if not fields_to_strip or not entries:
         return entries
-
     slim = []
     for entry in entries:
         slim_entry = {k: v for k, v in entry.items() if k not in fields_to_strip}
@@ -161,44 +159,32 @@ class ElternPortalSensor(
         self._entry = entry
         self._attr_icon = description["icon"]
 
-        # Child name from config data (set during setup flow)
         child_name = entry.data.get(CONF_CHILD_NAME, "")
 
-        # Stable unique_id (never changes)
         self._attr_unique_id = f"{entry.entry_id}_{sensor_type}"
 
-        # Entity ID: sensor.aegymuc_sfg_schulaufgaben
         slug = entry.data.get(CONF_SCHOOL_SLUG, "elternportal")
         sensor_label = description["name"]
         entity_slug = _build_entity_id(slug, child_name, sensor_label)
         self.entity_id = f"sensor.{entity_slug}"
 
-        # Friendly name: aegymuc SFG Schulaufgaben
         if child_name:
             self._attr_name = f"{slug} {child_name} {sensor_label}"
         else:
             self._attr_name = f"{slug} {sensor_label}"
 
     def _get_child_name(self) -> str:
-        """Get child name from options, config data, or coordinator."""
-        # 1. From options (user reconfigured)
         child = self._entry.options.get(CONF_CHILD_NAME, "")
         if child:
             return child
-
-        # 2. From config data (set during setup)
         child = self._entry.data.get(CONF_CHILD_NAME, "")
         if child:
             return child
-
-        # 3. Auto-detected from coordinator
         if self.coordinator.child_name:
             return self.coordinator.child_name
-
         return ""
 
     def _get_entries(self) -> list:
-        """Get entries for this sensor."""
         if self.coordinator.data is None:
             return []
         data = self.coordinator.data.get(self._data_key, [])
@@ -208,33 +194,27 @@ class ElternPortalSensor(
 
     @property
     def name(self) -> str:
-        """Return the sensor name: [slug] [child_name] [sensor_name]."""
         slug = self._entry.data.get(CONF_SCHOOL_SLUG, "elternportal")
         child = self._get_child_name()
         sensor_name = self._description["name"]
-
         if child:
             return f"{slug} {child} {sensor_name}"
         return f"{slug} {sensor_name}"
 
     @property
     def native_value(self) -> int | None:
-        """Return the number of items."""
         if self.coordinator.data is None:
             return None
-
         entries = self._get_entries()
         return len(entries) if entries else 0
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return slim entries and metadata as attributes."""
         if self.coordinator.data is None:
             return {}
 
         entries = self._get_entries()
 
-        # Last fetch timestamp
         last_fetch = None
         if (
             hasattr(self.coordinator, "last_update_success_time")
@@ -244,7 +224,6 @@ class ElternPortalSensor(
         elif self.coordinator.last_update_success:
             last_fetch = datetime.now().isoformat()
 
-        # Slim entries: remove body/content/link to stay under 16KB
         slim = _slim_entries(self._data_key, entries)
 
         attrs: dict[str, Any] = {
@@ -252,15 +231,14 @@ class ElternPortalSensor(
             ATTR_LAST_FETCH: last_fetch,
         }
 
-        # Unacknowledged count for letters
         if self._data_key == "letters":
             unread = sum(
-                1 for e in entries
+                1
+                for e in entries
                 if isinstance(e, dict) and not e.get("acknowledged", True)
             )
             attrs["unread_count"] = unread
 
-        # Child & class info
         child_name = self._get_child_name()
         if child_name:
             attrs[ATTR_CHILD_NAME] = child_name

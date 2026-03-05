@@ -20,7 +20,6 @@ from .const import (
 from .coordinator import ElternPortalCoordinator
 
 _LOGGER = logging.getLogger(__name__)
-
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 
@@ -39,12 +38,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Reload on options change
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
-    # ---- Service: elternportal.fetch_data ----
     async def handle_fetch_data(call: ServiceCall) -> None:
-        """Handle the fetch_data service call."""
         for coord in hass.data[DOMAIN].values():
             if isinstance(coord, ElternPortalCoordinator):
                 await coord.async_request_refresh()
@@ -77,7 +73,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         await coordinator.api.close()
 
-    # Remove service when no entries left
     if not hass.data.get(DOMAIN):
         hass.services.async_remove(DOMAIN, SERVICE_FETCH_DATA)
 
