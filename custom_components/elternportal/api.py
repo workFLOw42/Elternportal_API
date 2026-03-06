@@ -73,10 +73,12 @@ class ElternPortalApi:
     # ------------------------------------------------------------------
 
     async def _get_session(self) -> aiohttp.ClientSession:
-        """Return an active session."""
+        """Return an active session with timeout."""
         if self._session is None or self._session.closed:
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
             self._session = aiohttp.ClientSession(
-                cookie_jar=aiohttp.CookieJar()
+                cookie_jar=aiohttp.CookieJar(),
+                timeout=timeout,
             )
             self._logged_in = False
         return self._session
@@ -89,18 +91,22 @@ class ElternPortalApi:
                     f"Failed to load login page: HTTP {resp.status}"
                 )
             html = await resp.text()
+
         soup = BeautifulSoup(html, "html.parser")
         csrf_input = soup.find("input", {"name": "csrf"})
         if csrf_input and csrf_input.get("value"):
             return csrf_input["value"]
+
         csrf_meta = soup.find("meta", {"name": "csrf-token"})
         if csrf_meta and csrf_meta.get("content"):
             return csrf_meta["content"]
+
         raise ElternPortalApiError("CSRF token not found")
 
     async def login(self) -> None:
         """Log in to ElternPortal."""
         session = await self._get_session()
+
         try:
             csrf = await self._get_csrf_token(session)
         except Exception as err:
@@ -114,6 +120,7 @@ class ElternPortalApi:
             "password": self._password,
             "go_to": "",
         }
+
         try:
             async with session.post(
                 f"{self._base_url}{ENDPOINT_LOGIN}",
@@ -150,6 +157,7 @@ class ElternPortalApi:
         await self._ensure_logged_in()
         session = await self._get_session()
         url = f"{self._base_url}{path}"
+
         try:
             async with session.get(url, allow_redirects=True) as resp:
                 if resp.status != 200:
@@ -161,6 +169,9 @@ class ElternPortalApi:
                     "login" in str(resp.url).lower()
                     and "username" in html.lower()
                 ):
+                    _LOGGER.debug(
+                        "Session expired, re-logging in for %s", path
+                    )
                     self._logged_in = False
                     await self.login()
                     async with session.get(
@@ -188,7 +199,6 @@ class ElternPortalApi:
             value = opt.get("value", "")
             if not text or not value:
                 continue
-            # Format: "Samuel Greiffert (6D)"
             match = re.match(r"^(.+?)\s*\((\w+)\)$", text)
             if match:
                 name = match.group(1).strip()
@@ -201,7 +211,6 @@ class ElternPortalApi:
                     {"name": text, "class": "", "id": value}
                 )
 
-        # Set first child as default if not set
         if self._children and not self._child_name:
             selected = select.find("option", selected=True)
             if selected:
@@ -237,13 +246,11 @@ class ElternPortalApi:
         current_section = ""
 
         for row in content.select("div.row.m_bot"):
-            # Check for section header (h3)
             h3 = row.select_one("h3")
             if h3:
                 current_section = h3.get_text(strip=True)
                 continue
 
-            # Extract label from col-md-4 > b
             label_el = row.select_one("div.col-md-4 b")
             if not label_el:
                 continue
@@ -251,7 +258,6 @@ class ElternPortalApi:
             if not label or label == "\xa0":
                 continue
 
-            # Extract value from col-md-6
             value_el = row.select_one("div.col-md-6")
             value = ""
             if value_el:
@@ -287,19 +293,16 @@ class ElternPortalApi:
 
         result: list[dict[str, Any]] = []
 
-        # --- Parse the timetable grid ---
         table = content.select_one("table.table-bordered")
         if table:
             timetable = self._parse_timetable_grid(table)
             if timetable:
                 result.append({"type": "timetable", "entries": timetable})
 
-        # --- Parse teacher list (after <hr>) ---
         teachers = self._parse_teachers(content)
         if teachers:
             result.append({"type": "teachers", "entries": teachers})
 
-        # --- Extract child name from "Lehrkräfte von ..." ---
         for td in content.find_all("td"):
             text = td.get_text(strip=True)
             if text.startswith("Lehrkräfte von "):
@@ -315,7 +318,6 @@ class ElternPortalApi:
         if not rows:
             return []
 
-        # First row = headers (days)
         header_cells = rows[0].find_all(["th", "td"])
         days = [c.get_text(strip=True) for c in header_cells]
 
@@ -325,7 +327,6 @@ class ElternPortalApi:
             if not cells:
                 continue
 
-            # First cell = period info ("1.\n08.00 - 08.45")
             period_text = cells[0].get_text(separator="\n", strip=True)
             period_parts = period_text.split("\n")
             period_num = period_parts[0].strip() if period_parts else ""
@@ -369,7 +370,6 @@ class ElternPortalApi:
             if not cells:
                 continue
 
-            # Section header (colspan=2, bold text)
             if len(cells) == 1 or (
                 len(cells) == 2 and cells[0].get("colspan")
             ):
@@ -432,26 +432,19 @@ class ElternPortalApi:
 
             first_cell = cells[0]
             colspan = first_cell.get("colspan")
-
             if colspan:
                 h4 = first_cell.find("h4")
                 if not h4:
                     continue
-
-                # Year header: has class "no_border"
                 if "no_border" in (first_cell.get("class") or []):
                     current_year = h4.get_text(strip=True)
                     continue
-
-                # Month header: has background-color #dddddd
                 style = first_cell.get("style", "")
                 if "#dddddd" in style or first_cell.find("a"):
                     current_month = h4.get_text(strip=True)
                     continue
-
                 continue
 
-            # Data row: 3 cells (date, time, description)
             if len(cells) >= 3:
                 date = cells[0].get_text(strip=True)
                 time = cells[1].get_text(strip=True)
@@ -467,7 +460,6 @@ class ElternPortalApi:
                     entry["month"] = current_month
                 if current_year:
                     entry["year"] = current_year
-
                 items.append(entry)
 
         return items
@@ -491,13 +483,11 @@ class ElternPortalApi:
 
         items: list[dict[str, Any]] = []
 
-        # --- Active entries: div.grid > div.grid-item > div.well ---
         for grid_item in content.select("div.grid-item div.well"):
             entry = self._parse_blackboard_well(grid_item, archived=False)
             if entry:
                 items.append(entry)
 
-        # --- Archived entries: div.row.arch > ... > div.well ---
         for arch_row in content.select("div.row.arch"):
             well = arch_row.select_one("div.well")
             if well:
@@ -518,11 +508,9 @@ class ElternPortalApi:
             entry["title"] = title_el.get_text(strip=True)
 
         if archived:
-            # Archived: date in col-sm-3 > p
             date_col = well.select_one("div.col-sm-3 p, div.col-md-2 p")
             if date_col:
                 entry["date"] = date_col.get_text(strip=True)
-            # Content in col-sm-9 > p (second row)
             content_rows = well.select("div.row")
             if len(content_rows) >= 2:
                 content_col = content_rows[1].select_one(
@@ -533,7 +521,6 @@ class ElternPortalApi:
                         separator="\n", strip=True
                     )
         else:
-            # Active: date in p with font-size: 10px
             for p in well.find_all("p"):
                 style = p.get("style", "")
                 if "font-size" in style and "10px" in style:
@@ -547,7 +534,6 @@ class ElternPortalApi:
                     entry["date"] = date_text
                     break
 
-            # Content: other p elements
             for p in well.find_all("p"):
                 style = p.get("style", "")
                 if "font-size" in style and "10px" in style:
@@ -555,7 +541,6 @@ class ElternPortalApi:
                 text = p.get_text(strip=True)
                 if not text:
                     continue
-                # Check for attachment
                 link = p.find("a")
                 if link and "get_file" in (link.get("href") or ""):
                     entry["has_attachment"] = True
@@ -592,13 +577,12 @@ class ElternPortalApi:
 
         items: list[dict[str, Any]] = []
         rows = table.find_all("tr")
-
         i = 0
+
         while i < len(rows):
             row = rows[i]
             cells = row.find_all("td")
 
-            # Header row: has #number and confirmation status
             if len(cells) == 2 and not cells[0].get("colspan"):
                 number_text = cells[0].get_text(strip=True)
                 status_text = cells[1].get_text(strip=True)
@@ -606,7 +590,6 @@ class ElternPortalApi:
                 entry: dict[str, Any] = {"number": number_text}
                 entry["acknowledged"] = "noch nicht" not in status_text
 
-                # Next row should be the content row
                 if i + 1 < len(rows):
                     content_row = rows[i + 1]
                     self._parse_letter_content(content_row, entry)
@@ -629,12 +612,10 @@ class ElternPortalApi:
         if not td:
             return
 
-        # Title from h4
         h4 = td.find("h4")
         if h4:
             entry["title"] = h4.get_text(strip=True)
 
-        # Link (file download) or span (no file)
         link = td.find("a", class_="link_nachrichten")
         span = td.find("span", class_="link_nachrichten")
 
@@ -651,13 +632,11 @@ class ElternPortalApi:
             span_text = span.get_text(separator="\n", strip=True)
             self._extract_letter_date(span_text, entry)
 
-        # Class info from span.small.text
         class_span = td.find("span", class_="small")
         if class_span:
             class_text = class_span.get_text(strip=True)
             entry["classes"] = class_text
 
-        # Body text: extract full text and remove known parts
         full_text = td.get_text(separator="\n", strip=True)
         if entry.get("title"):
             full_text = full_text.replace(entry["title"], "", 1)
@@ -695,7 +674,6 @@ class ElternPortalApi:
         soup = BeautifulSoup(html, "html.parser")
         items: list[dict[str, Any]] = []
 
-        # Try table-based layout
         for table in soup.find_all("table"):
             for row in table.find_all("tr"):
                 cells = row.find_all("td")
@@ -717,7 +695,6 @@ class ElternPortalApi:
         if items:
             return items
 
-        # Try list/card-based layout
         for card in soup.select(
             ".list-group-item, .card, .panel, .message, .nachricht, "
             ".well, .row.m_bot"
@@ -764,7 +741,6 @@ class ElternPortalApi:
         for row in content.select("div.row.m_bot"):
             entry: dict[str, Any] = {}
 
-            # Title link
             link = row.select_one("a.umf_list, a.link_nachrichten")
             if link:
                 entry["title"] = link.get_text(strip=True)
@@ -773,12 +749,10 @@ class ElternPortalApi:
                     href = f"{self._base_url}/{href}"
                 entry["link"] = href
 
-            # End date
             date_span = row.select_one("div.col-xs-3 span")
             if date_span:
                 entry["end_date"] = date_span.get_text(strip=True)
 
-            # Voted status (3rd column)
             voted_col = row.select("div.col-xs-3")
             if len(voted_col) >= 2:
                 voted_text = voted_col[1].get_text(strip=True)
@@ -833,15 +807,37 @@ class ElternPortalApi:
             "surveys": self.get_surveys,
         }
 
+        errors: list[str] = []
         for key, fetcher in fetchers.items():
             try:
                 data[key] = await fetcher()
+            except ElternPortalAuthError as err:
+                _LOGGER.warning("Auth error fetching %s: %s", key, err)
+                errors.append(key)
+                # If auth fails on first endpoint, don't bother with rest
+                if key == "school_info":
+                    raise
             except ElternPortalApiError as err:
                 _LOGGER.warning("Failed to fetch %s: %s", key, err)
+                errors.append(key)
+
+        # If ALL endpoints failed, raise so coordinator can handle it
+        if len(errors) == len(fetchers):
+            raise ElternPortalApiError(
+                f"All {len(errors)} endpoints failed. Connection lost?"
+            )
 
         data["child_name"] = self._child_name
         data["class_name"] = self._class_name
         data["children"] = self._children
+
+        if errors:
+            _LOGGER.warning(
+                "Partial fetch: %d/%d endpoints failed: %s",
+                len(errors),
+                len(fetchers),
+                ", ".join(errors),
+            )
 
         return data
 

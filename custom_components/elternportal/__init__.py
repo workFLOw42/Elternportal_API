@@ -20,6 +20,7 @@ from .const import (
 from .coordinator import ElternPortalCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 
@@ -37,13 +38,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     async def handle_fetch_data(call: ServiceCall) -> None:
+        """Handle fetch_data service call."""
         for coord in hass.data[DOMAIN].values():
             if isinstance(coord, ElternPortalCoordinator):
                 await coord.async_request_refresh()
+                if coord.last_update_success:
+                    entry_counts = {
+                        k: len(v)
+                        for k, v in (coord.data or {}).items()
+                        if isinstance(v, list)
+                    }
+                    _LOGGER.info(
+                        "ElternPortal fetch successful. Entries: %s",
+                        entry_counts,
+                    )
+                else:
+                    _LOGGER.warning("ElternPortal fetch failed!")
 
     if not hass.services.has_service(DOMAIN, SERVICE_FETCH_DATA):
         hass.services.async_register(

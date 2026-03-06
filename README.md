@@ -50,6 +50,8 @@
 - 🔄 **Manual fetch** – data is fetched on demand via `elternportal.fetch_data` service
 - 🔐 **Secure authentication** – CSRF-token based login with session management
 - 📏 **Recorder-safe** – large text fields (body, content) are stripped from attributes to stay under 16KB
+- 🛡️ **Stale-data protection** – sensors keep last good data when the portal is temporarily unreachable
+- 🔁 **Auto session recovery** – automatic re-login and session refresh on connection loss
 
 ---
 
@@ -147,6 +149,22 @@ Go to **Developer Tools** → **Services** → search for `elternportal.fetch_da
 
 ---
 
+## 🛡️ Connection Resilience
+
+The integration includes built-in protection against intermittent connection issues:
+
+- **Stale-data protection**: If the portal returns empty data but previously had valid entries, the integration keeps the last good data instead of showing empty sensors
+- **Auto session recovery**: When a session expires or drops, the integration automatically creates a fresh session and retries
+- **Graceful degradation**: If individual endpoints fail but others succeed, partial data is preserved
+- **Max retry threshold**: After 3 consecutive empty fetches, the empty data is accepted (handles legitimate cases like end of school year)
+
+Check the Home Assistant logs for messages like:
+- `ElternPortal returned empty critical data (attempt 1/3)` – stale-data protection active
+- `Fresh session recovered X critical entries!` – auto-recovery succeeded
+- `Auth recovery failed. Keeping last good data.` – using cached data
+
+---
+
 ## 📊 Sensor Details
 
 Each sensor shows the **number of entries** as its state. Attributes contain **metadata only** – large text fields (body, content, links) are stripped to stay under the Home Assistant recorder limit of 16KB.
@@ -156,7 +174,6 @@ Each sensor shows the **number of entries** as its state. Attributes contain **m
 **State:** `22` (number of exams)
 
 **Attributes:**
-
 ```yaml
 entries:
   - date: "11.03.2026"
@@ -177,7 +194,6 @@ last_fetch: "2026-03-04T10:28:53.344191"
 **State:** `94` (number of letters)
 
 **Attributes:**
-
 ```yaml
 entries:
   - number: "#94"
@@ -205,7 +221,6 @@ last_fetch: "2026-03-04T12:41:17.144487"
 **State:** `4` (number of entries)
 
 **Attributes:**
-
 ```yaml
 entries:
   - title: "Nachhilfe-Angebot"
@@ -285,10 +300,11 @@ content: >
 |---|---|
 | **Login fails** | Verify your credentials at `https://[slug].eltern-portal.org` |
 | **No data after setup** | Call the `elternportal.fetch_data` service manually |
-| **Sensors show 0** | Check HA logs for parsing errors: **Settings → System → Logs** |
+| **Sensors show 0** | Check HA logs for "empty critical data" messages – may be a session issue |
 | **CSRF token error** | The portal may be temporarily unavailable – retry later |
 | **Wrong child name** | Entity IDs are set at setup – delete & re-add integration to change |
 | **Recorder 16KB warning** | Should not occur – if it does, check for custom parser changes |
+| **"Keeping last good data"** | Normal behavior – integration auto-recovers on next fetch |
 
 ### Enable Debug Logging
 
@@ -303,8 +319,15 @@ logger:
 
 ## 📋 Changelog
 
-### v2.2.0
+### v2.3.0
+- 🛡️ **Stale-data protection** – sensors keep last good data when portal returns empty results
+- 🔁 **Auto session recovery** – automatic fresh session creation on connection loss / auth expiry
+- ⏱️ **Connection timeout** – 30s total / 10s connect timeout prevents hanging requests
+- 🔍 **Total failure detection** – raises proper error when ALL endpoints fail (vs. partial success)
+- 📝 **Enhanced logging** – fetch service logs entry counts, coordinator logs recovery attempts
+- 🐛 **Fixed**: Sensors dropping to 0 when ElternPortal session expires mid-operation
 
+### v2.2.0
 - 🧒 **Child name in setup flow** – set name/short code during initial setup for consistent entity IDs
 - 👨‍👩‍👧‍👦 **Multi-child support** – add integration multiple times with different child names
 - 📏 **Recorder-safe attributes** – large text fields stripped to stay under 16KB limit
@@ -312,7 +335,6 @@ logger:
 - 🐛 **Fixed**: OptionsFlow compatibility with HA 2024.x+
 
 ### v2.0.0 (2025-03-04)
-
 - 🔧 **Complete parser rewrite** – all parsers rebuilt based on real HTML structure
 - 🆕 **Umfragen/Surveys sensor** – new sensor for polls and surveys
 - 🧒 **Automatic child detection** – name and class auto-detected from portal navigation
@@ -324,7 +346,6 @@ logger:
 - 🐛 **Fixed**: Elternbriefe parser not handling paired-row structure
 
 ### v1.1.0
-
 - Initial release
 
 ---

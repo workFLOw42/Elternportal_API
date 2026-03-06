@@ -112,7 +112,9 @@ def _slim_entries(data_key: str, entries: list[dict]) -> list[dict]:
         return entries
     slim = []
     for entry in entries:
-        slim_entry = {k: v for k, v in entry.items() if k not in fields_to_strip}
+        slim_entry = {
+            k: v for k, v in entry.items() if k not in fields_to_strip
+        }
         slim.append(slim_entry)
     return slim
 
@@ -152,7 +154,6 @@ class ElternPortalSensor(
     ) -> None:
         """Initialize."""
         super().__init__(coordinator)
-
         self._data_key = description["data_key"]
         self._sensor_type = sensor_type
         self._description = description
@@ -160,7 +161,6 @@ class ElternPortalSensor(
         self._attr_icon = description["icon"]
 
         child_name = entry.data.get(CONF_CHILD_NAME, "")
-
         self._attr_unique_id = f"{entry.entry_id}_{sensor_type}"
 
         slug = entry.data.get(CONF_SCHOOL_SLUG, "elternportal")

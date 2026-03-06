@@ -16,9 +16,20 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+# Keys that should have entries when the portal has data
+_CRITICAL_KEYS = ("exams", "appointments")
+
+# Max consecutive empty fetches before accepting empty data
+_MAX_EMPTY_RETRIES = 3
+
 
 class ElternPortalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
-    """Coordinator that fetches data only when explicitly requested."""
+    """Coordinator that fetches data only when explicitly requested.
+
+    Includes stale-data protection: if the portal returns empty data
+    but we previously had good data, we keep the old data and retry
+    with a fresh session before accepting the empty result.
+    """
 
     config_entry: ConfigEntry
 
@@ -35,6 +46,8 @@ class ElternPortalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=None,
         )
         self.api = api
+        self._consecutive_empty: int = 0
+        self._last_good_data: dict[str, Any] | None = None
 
     @property
     def child_name(self) -> str | None:
@@ -50,11 +63,96 @@ class ElternPortalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return self.data.get("class_name")
         return self.api.class_name
 
-    async def _async_update_data(self) -> dict[str, Any]:
-        """Fetch data from ElternPortal."""
+    def _count_critical_entries(self, data: dict[str, Any]) -> int:
+        """Count entries in critical keys."""
+        return sum(
+            len(data.get(k, []))
+            for k in _CRITICAL_KEYS
+            if isinstance(data.get(k), list)
+        )
+
+    async def _fetch_with_fresh_session(self) -> dict[str, Any] | None:
+        """Close session and try a completely fresh fetch."""
+        _LOGGER.info("Attempting fresh session recovery...")
+        await self.api.close()
         try:
-            return await self.api.get_all_data()
+            retry_data = await self.api.get_all_data()
+            retry_count = self._count_critical_entries(retry_data)
+            if retry_count > 0:
+                _LOGGER.info(
+                    "Fresh session recovered %d critical entries!",
+                    retry_count,
+                )
+                return retry_data
+            _LOGGER.warning("Fresh session also returned empty data.")
+        except (ElternPortalApiError, ElternPortalAuthError) as err:
+            _LOGGER.warning("Fresh session retry failed: %s", err)
+        return None
+
+    async def _async_update_data(self) -> dict[str, Any]:
+        """Fetch data from ElternPortal with stale-data protection."""
+        # ── Attempt fetch ──
+        try:
+            new_data = await self.api.get_all_data()
         except ElternPortalAuthError as err:
+            _LOGGER.warning("Auth error, attempting fresh session: %s", err)
+            recovery = await self._fetch_with_fresh_session()
+            if recovery:
+                self._consecutive_empty = 0
+                self._last_good_data = recovery
+                return recovery
+            if self._last_good_data:
+                _LOGGER.warning(
+                    "Auth recovery failed. Keeping last good data."
+                )
+                return self._last_good_data
             raise UpdateFailed(f"Authentication error: {err}") from err
         except ElternPortalApiError as err:
+            if self._last_good_data:
+                _LOGGER.warning(
+                    "Fetch error, keeping last good data: %s", err
+                )
+                return self._last_good_data
             raise UpdateFailed(f"Error fetching data: {err}") from err
+
+        # ── Stale-data protection ──
+        critical_count = self._count_critical_entries(new_data)
+
+        if critical_count == 0 and self._last_good_data:
+            self._consecutive_empty += 1
+            _LOGGER.warning(
+                "ElternPortal returned empty critical data "
+                "(attempt %d/%d). Previous data had %d entries.",
+                self._consecutive_empty,
+                _MAX_EMPTY_RETRIES,
+                self._count_critical_entries(self._last_good_data),
+            )
+
+            if self._consecutive_empty >= _MAX_EMPTY_RETRIES:
+                # After N attempts, accept the empty data
+                # (portal might genuinely be empty, e.g. new school year)
+                _LOGGER.warning(
+                    "Max empty retries (%d) reached. Accepting empty data. "
+                    "If this is unexpected, reload the integration.",
+                    _MAX_EMPTY_RETRIES,
+                )
+                self._consecutive_empty = 0
+                self._last_good_data = new_data
+                return new_data
+
+            # Try once with a fresh session
+            recovery = await self._fetch_with_fresh_session()
+            if recovery:
+                self._consecutive_empty = 0
+                self._last_good_data = recovery
+                return recovery
+
+            # Fresh session didn't help – keep old data
+            return self._last_good_data
+
+        # ── Good fetch – save and reset ──
+        if critical_count > 0:
+            self._consecutive_empty = 0
+            self._last_good_data = new_data
+
+        return new_data
