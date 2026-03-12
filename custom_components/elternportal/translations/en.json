@@ -9,6 +9,20 @@
           "username": "Username (email)",
           "password": "Password"
         }
+      },
+      "child": {
+        "title": "Child Name",
+        "description": "Enter a name or short code for your child. This determines the sensor entity IDs (e.g. 'SFG' → sensor.aegymuc_sfg_schulaufgaben). Leave empty for auto-detection from the portal.",
+        "data": {
+          "child_name": "Child name / short code"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate ElternPortal",
+        "description": "The credentials for {school_slug} ({username}) are no longer valid. Please enter the new password.",
+        "data": {
+          "password": "Password"
+        }
       }
     },
     "error": {
@@ -17,7 +31,8 @@
       "unknown": "Unexpected error"
     },
     "abort": {
-      "already_configured": "Already configured"
+      "already_configured": "Already configured",
+      "reauth_successful": "Re-authentication successful"
     }
   },
   "options": {
