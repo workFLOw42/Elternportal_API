@@ -41,7 +41,15 @@
         "title": "ElternPortal Options",
         "description": "Change the child name used in sensor friendly names. Note: Entity IDs are set during initial setup and cannot be changed here.",
         "data": {
-          "child_name": "Child name"
+          "child_name": "Child name",
+          "enable_school_info": "School information",
+          "enable_timetable": "Timetable",
+          "enable_exams": "Exams",
+          "enable_appointments": "Appointments",
+          "enable_blackboard": "Bulletin board",
+          "enable_letters": "Parent letters",
+          "enable_messages": "Teacher communication",
+          "enable_surveys": "Surveys"
         }
       }
     }

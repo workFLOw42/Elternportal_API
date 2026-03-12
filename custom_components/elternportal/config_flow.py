@@ -22,6 +22,7 @@ from .const import (
     CONF_SCHOOL_SLUG,
     CONF_USERNAME,
     DOMAIN,
+    ENDPOINT_TOGGLES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -191,11 +192,14 @@ class ElternPortalOptionsFlow(OptionsFlow):
             self.config_entry.data.get(CONF_CHILD_NAME, ""),
         )
 
+        schema_dict: dict[Any, Any] = {
+            vol.Optional(CONF_CHILD_NAME, default=current_child): str,
+        }
+        for conf_key in ENDPOINT_TOGGLES.values():
+            current_val = self.config_entry.options.get(conf_key, True)
+            schema_dict[vol.Optional(conf_key, default=current_val)] = bool
+
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Optional(CONF_CHILD_NAME, default=current_child): str,
-                }
-            ),
+            data_schema=vol.Schema(schema_dict),
         )

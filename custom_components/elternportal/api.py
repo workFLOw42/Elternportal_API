@@ -780,8 +780,10 @@ class ElternPortalApi:
     # Aggregated fetch
     # ------------------------------------------------------------------
 
-    async def get_all_data(self) -> dict[str, Any]:
-        """Fetch all endpoints and return combined dict."""
+    async def get_all_data(
+        self, enabled_endpoints: set[str] | None = None
+    ) -> dict[str, Any]:
+        """Fetch all (or selected) endpoints and return combined dict."""
         data: dict[str, Any] = {
             "school_info": [],
             "timetable": [],
@@ -809,6 +811,8 @@ class ElternPortalApi:
 
         errors: list[str] = []
         for key, fetcher in fetchers.items():
+            if enabled_endpoints is not None and key not in enabled_endpoints:
+                continue
             try:
                 data[key] = await fetcher()
             except ElternPortalAuthError as err:

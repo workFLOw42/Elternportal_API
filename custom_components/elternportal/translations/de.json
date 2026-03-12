@@ -41,7 +41,15 @@
         "title": "ElternPortal Optionen",
         "description": "Konfigurieren Sie den Kindernamen. Dieser wird in den Sensornamen verwendet (z.B. sensor.aegymuc_samuel_schulaufgaben). Leer lassen für automatische Erkennung.",
         "data": {
-          "child_name": "Name des Kindes"
+          "child_name": "Name des Kindes",
+          "enable_school_info": "Schulinformationen",
+          "enable_timetable": "Stundenplan",
+          "enable_exams": "Schulaufgaben",
+          "enable_appointments": "Termine",
+          "enable_blackboard": "Schwarzes Brett",
+          "enable_letters": "Elternbriefe",
+          "enable_messages": "Kommunikation Fachlehrer",
+          "enable_surveys": "Umfragen"
         }
       }
     }
