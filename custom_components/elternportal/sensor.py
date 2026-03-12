@@ -168,11 +168,6 @@ class ElternPortalSensor(
         entity_slug = _build_entity_id(slug, child_name, sensor_label)
         self.entity_id = f"sensor.{entity_slug}"
 
-        if child_name:
-            self._attr_name = f"{slug} {child_name} {sensor_label}"
-        else:
-            self._attr_name = f"{slug} {sensor_label}"
-
     def _get_child_name(self) -> str:
         child = self._entry.options.get(CONF_CHILD_NAME, "")
         if child:
