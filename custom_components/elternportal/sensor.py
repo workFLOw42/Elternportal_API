@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity
@@ -11,6 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
 from .const import (
     ATTR_CHILD_NAME,
@@ -222,7 +222,7 @@ class ElternPortalSensor(
         ):
             last_fetch = self.coordinator.last_update_success_time.isoformat()
         elif self.coordinator.last_update_success:
-            last_fetch = datetime.now().isoformat()
+            last_fetch = dt_util.now().isoformat()
 
         slim = _slim_entries(self._data_key, entries)
 
