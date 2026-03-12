@@ -20,6 +20,7 @@ from .const import (
     CONF_CHILD_NAME,
     CONF_SCHOOL_SLUG,
     DOMAIN,
+    ENDPOINT_TOGGLES,
     SENSOR_APPOINTMENTS,
     SENSOR_BLACKBOARD,
     SENSOR_EXAMS,
@@ -127,6 +128,12 @@ async def async_setup_entry(
     """Set up ElternPortal API sensors."""
     coordinator: ElternPortalCoordinator = hass.data[DOMAIN][entry.entry_id]
 
+    enabled_keys = {
+        key
+        for key, conf_key in ENDPOINT_TOGGLES.items()
+        if entry.options.get(conf_key, True)
+    }
+
     async_add_entities(
         ElternPortalSensor(
             coordinator=coordinator,
@@ -135,6 +142,7 @@ async def async_setup_entry(
             description=description,
         )
         for sensor_type, description in SENSORS.items()
+        if description["data_key"] in enabled_keys
     )
 
 

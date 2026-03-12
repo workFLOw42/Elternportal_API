@@ -38,6 +38,18 @@ SENSOR_LETTERS: Final = "letters"
 SENSOR_MESSAGES: Final = "messages"
 SENSOR_SURVEYS: Final = "surveys"
 
+# Endpoint toggles (data_key -> options key)
+ENDPOINT_TOGGLES: Final = {
+    "school_info": "enable_school_info",
+    "timetable": "enable_timetable",
+    "exams": "enable_exams",
+    "appointments": "enable_appointments",
+    "blackboard": "enable_blackboard",
+    "letters": "enable_letters",
+    "messages": "enable_messages",
+    "surveys": "enable_surveys",
+}
+
 # Attribute keys
 ATTR_ENTRIES: Final = "entries"
 ATTR_LAST_FETCH: Final = "last_fetch"

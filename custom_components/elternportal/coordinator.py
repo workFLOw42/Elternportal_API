@@ -12,7 +12,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .api import ElternPortalApi, ElternPortalApiError, ElternPortalAuthError
-from .const import DOMAIN
+from .const import DOMAIN, ENDPOINT_TOGGLES
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,12 +71,16 @@ class ElternPortalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if isinstance(data.get(k), list)
         )
 
-    async def _fetch_with_fresh_session(self) -> dict[str, Any] | None:
+    async def _fetch_with_fresh_session(
+        self, enabled_endpoints: set[str] | None = None
+    ) -> dict[str, Any] | None:
         """Close session and try a completely fresh fetch."""
         _LOGGER.info("Attempting fresh session recovery...")
         await self.api.close()
         try:
-            retry_data = await self.api.get_all_data()
+            retry_data = await self.api.get_all_data(
+                enabled_endpoints=enabled_endpoints
+            )
             retry_count = self._count_critical_entries(retry_data)
             if retry_count > 0:
                 _LOGGER.info(
@@ -91,12 +95,19 @@ class ElternPortalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from ElternPortal with stale-data protection."""
+        # ── Build enabled endpoints set from options ──
+        enabled = {
+            key
+            for key, conf_key in ENDPOINT_TOGGLES.items()
+            if self.config_entry.options.get(conf_key, True)
+        }
+
         # ── Attempt fetch ──
         try:
-            new_data = await self.api.get_all_data()
+            new_data = await self.api.get_all_data(enabled_endpoints=enabled)
         except ElternPortalAuthError as err:
             _LOGGER.warning("Auth error, attempting fresh session: %s", err)
-            recovery = await self._fetch_with_fresh_session()
+            recovery = await self._fetch_with_fresh_session(enabled)
             if recovery:
                 self._consecutive_empty = 0
                 self._last_good_data = recovery
@@ -141,7 +152,7 @@ class ElternPortalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 return new_data
 
             # Try once with a fresh session
-            recovery = await self._fetch_with_fresh_session()
+            recovery = await self._fetch_with_fresh_session(enabled)
             if recovery:
                 self._consecutive_empty = 0
                 self._last_good_data = recovery
