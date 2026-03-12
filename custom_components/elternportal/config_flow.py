@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
@@ -42,6 +43,7 @@ class ElternPortalConfigFlow(ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         """Initialize."""
         self._user_input: dict[str, Any] = {}
+        self._reauth_entry: ConfigEntry | None = None
 
     @staticmethod
     @callback
@@ -114,6 +116,63 @@ class ElternPortalConfigFlow(ConfigFlow, domain=DOMAIN):
                     vol.Optional(CONF_CHILD_NAME, default=""): str,
                 }
             ),
+        )
+
+    async def async_step_reauth(
+        self, entry_data: Mapping[str, Any]
+    ) -> ConfigFlowResult:
+        """Handle re-authentication trigger."""
+        self._reauth_entry = self.hass.config_entries.async_get_entry(
+            self.context["entry_id"]
+        )
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle re-authentication confirmation."""
+        errors: dict[str, str] = {}
+        assert self._reauth_entry is not None
+
+        if user_input is not None:
+            api = ElternPortalApi(
+                school_slug=self._reauth_entry.data[CONF_SCHOOL_SLUG],
+                username=self._reauth_entry.data[CONF_USERNAME],
+                password=user_input[CONF_PASSWORD],
+            )
+            try:
+                await api.test_connection()
+            except ElternPortalAuthError:
+                errors["base"] = "invalid_auth"
+            except ElternPortalApiError:
+                errors["base"] = "cannot_connect"
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("Unexpected exception during reauth")
+                errors["base"] = "unknown"
+            finally:
+                await api.close()
+
+            if not errors:
+                self.hass.config_entries.async_update_entry(
+                    self._reauth_entry,
+                    data={
+                        **self._reauth_entry.data,
+                        CONF_PASSWORD: user_input[CONF_PASSWORD],
+                    },
+                )
+                await self.hass.config_entries.async_reload(
+                    self._reauth_entry.entry_id
+                )
+                return self.async_abort(reason="reauth_successful")
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema({vol.Required(CONF_PASSWORD): str}),
+            errors=errors,
+            description_placeholders={
+                "school_slug": self._reauth_entry.data[CONF_SCHOOL_SLUG],
+                "username": self._reauth_entry.data[CONF_USERNAME],
+            },
         )
 
 

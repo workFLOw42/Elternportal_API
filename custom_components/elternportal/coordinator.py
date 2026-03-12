@@ -105,7 +105,9 @@ class ElternPortalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 _LOGGER.warning(
                     "Auth recovery failed. Keeping last good data."
                 )
+                self.config_entry.async_start_reauth(self.hass)
                 return self._last_good_data
+            self.config_entry.async_start_reauth(self.hass)
             raise UpdateFailed(f"Authentication error: {err}") from err
         except ElternPortalApiError as err:
             if self._last_good_data:

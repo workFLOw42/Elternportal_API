@@ -16,6 +16,13 @@
         "data": {
           "child_name": "Child name / short code"
         }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate ElternPortal",
+        "description": "The credentials for {school_slug} ({username}) are no longer valid. Please enter the new password.",
+        "data": {
+          "password": "Password"
+        }
       }
     },
     "error": {
@@ -24,7 +31,8 @@
       "unknown": "Unexpected error"
     },
     "abort": {
-      "already_configured": "Already configured"
+      "already_configured": "Already configured",
+      "reauth_successful": "Re-authentication successful"
     }
   },
   "options": {

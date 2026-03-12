@@ -9,6 +9,20 @@
           "username": "Benutzername (E-Mail)",
           "password": "Passwort"
         }
+      },
+      "child": {
+        "title": "Name des Kindes",
+        "description": "Geben Sie einen Namen oder ein Kürzel für Ihr Kind ein. Dieser bestimmt die Sensor-Entity-IDs (z.B. 'SFG' → sensor.aegymuc_sfg_schulaufgaben). Leer lassen für automatische Erkennung.",
+        "data": {
+          "child_name": "Name / Kürzel"
+        }
+      },
+      "reauth_confirm": {
+        "title": "ElternPortal erneut authentifizieren",
+        "description": "Die Zugangsdaten für {school_slug} ({username}) sind nicht mehr gültig. Bitte geben Sie das neue Passwort ein.",
+        "data": {
+          "password": "Passwort"
+        }
       }
     },
     "error": {
@@ -17,7 +31,8 @@
       "unknown": "Unerwarteter Fehler"
     },
     "abort": {
-      "already_configured": "Bereits konfiguriert"
+      "already_configured": "Bereits konfiguriert",
+      "reauth_successful": "Erneute Authentifizierung erfolgreich"
     }
   },
   "options": {
@@ -29,6 +44,12 @@
           "child_name": "Name des Kindes"
         }
       }
+    }
+  },
+  "services": {
+    "fetch_data": {
+      "name": "Daten abrufen",
+      "description": "Alle Daten vom ElternPortal abrufen."
     }
   }
 }
