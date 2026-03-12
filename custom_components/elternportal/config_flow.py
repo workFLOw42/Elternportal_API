@@ -70,8 +70,7 @@ class ElternPortalConfigFlow(ConfigFlow, domain=DOMAIN):
             )
 
             try:
-                if not await api.test_connection():
-                    errors["base"] = "invalid_auth"
+                await api.test_connection()
             except ElternPortalAuthError:
                 errors["base"] = "invalid_auth"
             except ElternPortalApiError:

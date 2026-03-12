@@ -846,14 +846,9 @@ class ElternPortalApi:
     # ------------------------------------------------------------------
 
     async def test_connection(self) -> bool:
-        """Test credentials."""
-        try:
-            await self.login()
-            return True
-        except ElternPortalAuthError:
-            return False
-        except ElternPortalApiError:
-            return False
+        """Test credentials. Raises ElternPortalAuthError or ElternPortalApiError."""
+        await self.login()
+        return True
 
     async def close(self) -> None:
         """Close session."""
