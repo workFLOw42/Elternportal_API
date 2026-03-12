@@ -12,6 +12,9 @@ from .const import (
     BASE_URL_TEMPLATE,
     ENDPOINT_LOGIN,
     ENDPOINT_LOGOUT,
+    HEALTH_DEGRADED,
+    HEALTH_EMPTY,
+    HEALTH_OK,
     PATH_SCHOOL_INFO,
     PATH_TIMETABLE,
     PATH_EXAMS,
@@ -52,6 +55,7 @@ class ElternPortalApi:
         self._child_name: str | None = None
         self._class_name: str | None = None
         self._children: list[dict[str, str]] = []
+        self._last_html: dict[str, str] = {}
 
     @property
     def child_name(self) -> str | None:
@@ -67,6 +71,29 @@ class ElternPortalApi:
     def children(self) -> list[dict[str, str]]:
         """Return detected children."""
         return self._children
+
+    # Expected DOM markers per endpoint for health checking
+    _EXPECTED_MARKERS: dict[str, list[str]] = {
+        "school_info": ["div#asam_content", "div.row.m_bot"],
+        "timetable": ["div#asam_content", "table.table-bordered"],
+        "exams": ["table.termine-table", "div#asam_content"],
+        "appointments": ["table.termine-table", "div#asam_content"],
+        "blackboard": ["div#asam_content"],
+        "letters": ["div#asam_content", "table"],
+        "messages": ["table"],
+        "surveys": ["div#asam_content", "div.row.m_bot"],
+    }
+
+    def _check_page_health(self, html: str, endpoint_key: str) -> str:
+        """Check if expected DOM markers are present in the HTML."""
+        markers = self._EXPECTED_MARKERS.get(endpoint_key, [])
+        if not markers:
+            return HEALTH_OK
+        soup = BeautifulSoup(html, "html.parser")
+        for selector in markers:
+            if soup.select_one(selector) is not None:
+                return HEALTH_OK
+        return HEALTH_DEGRADED
 
     # ------------------------------------------------------------------
     # Session & Auth
@@ -233,6 +260,7 @@ class ElternPortalApi:
         """Fetch /service/schulinformationen."""
         html = await self._fetch_page(PATH_SCHOOL_INFO)
         self._extract_children_from_html(html)
+        self._last_html["school_info"] = html
         return self._parse_school_info(html)
 
     def _parse_school_info(self, html: str) -> list[dict[str, Any]]:
@@ -282,6 +310,7 @@ class ElternPortalApi:
         """Fetch /service/stundenplan."""
         html = await self._fetch_page(PATH_TIMETABLE)
         self._extract_children_from_html(html)
+        self._last_html["timetable"] = html
         return self._parse_timetable(html)
 
     def _parse_timetable(self, html: str) -> list[dict[str, Any]]:
@@ -402,12 +431,14 @@ class ElternPortalApi:
         """Fetch /service/termine/liste/schulaufgaben."""
         html = await self._fetch_page(PATH_EXAMS)
         self._extract_children_from_html(html)
+        self._last_html["exams"] = html
         return self._parse_termine(html)
 
     async def get_appointments(self) -> list[dict[str, Any]]:
         """Fetch /service/termine/liste/allgemein."""
         html = await self._fetch_page(PATH_APPOINTMENTS)
         self._extract_children_from_html(html)
+        self._last_html["appointments"] = html
         return self._parse_termine(html)
 
     def _parse_termine(self, html: str) -> list[dict[str, Any]]:
@@ -472,6 +503,7 @@ class ElternPortalApi:
         """Fetch /aktuelles/schwarzes_brett."""
         html = await self._fetch_page(PATH_BLACKBOARD)
         self._extract_children_from_html(html)
+        self._last_html["blackboard"] = html
         return self._parse_blackboard(html)
 
     def _parse_blackboard(self, html: str) -> list[dict[str, Any]]:
@@ -562,6 +594,7 @@ class ElternPortalApi:
         """Fetch /aktuelles/elternbriefe."""
         html = await self._fetch_page(PATH_LETTERS)
         self._extract_children_from_html(html)
+        self._last_html["letters"] = html
         return self._parse_letters(html)
 
     def _parse_letters(self, html: str) -> list[dict[str, Any]]:
@@ -667,6 +700,7 @@ class ElternPortalApi:
         """Fetch /meldungen/kommunikation_fachlehrer."""
         html = await self._fetch_page(PATH_MESSAGES)
         self._extract_children_from_html(html)
+        self._last_html["messages"] = html
         return self._parse_messages(html)
 
     def _parse_messages(self, html: str) -> list[dict[str, Any]]:
@@ -727,6 +761,7 @@ class ElternPortalApi:
         """Fetch /aktuelles/umfragen."""
         html = await self._fetch_page(PATH_SURVEYS)
         self._extract_children_from_html(html)
+        self._last_html["surveys"] = html
         return self._parse_surveys(html)
 
     def _parse_surveys(self, html: str) -> list[dict[str, Any]]:
@@ -834,6 +869,22 @@ class ElternPortalApi:
         data["child_name"] = self._child_name
         data["class_name"] = self._class_name
         data["children"] = self._children
+
+        # Build parser health from stored HTML
+        health: dict[str, str] = {}
+        for key in fetchers:
+            if key in errors:
+                health[key] = HEALTH_DEGRADED
+            elif key in self._last_html:
+                page_health = self._check_page_health(
+                    self._last_html[key], key
+                )
+                if page_health == HEALTH_OK and not data.get(key):
+                    health[key] = HEALTH_EMPTY
+                else:
+                    health[key] = page_health
+        self._last_html.clear()
+        data["_parser_health"] = health
 
         if errors:
             _LOGGER.warning(

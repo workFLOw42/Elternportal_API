@@ -17,6 +17,7 @@ from .const import (
     ATTR_CLASS_NAME,
     ATTR_ENTRIES,
     ATTR_LAST_FETCH,
+    ATTR_PARSER_HEALTH,
     CONF_CHILD_NAME,
     CONF_SCHOOL_SLUG,
     DOMAIN,
@@ -249,5 +250,10 @@ class ElternPortalSensor(
         class_name = self.coordinator.class_name
         if class_name:
             attrs[ATTR_CLASS_NAME] = class_name
+
+        health = self.coordinator.data.get("_parser_health", {})
+        endpoint_health = health.get(self._data_key)
+        if endpoint_health:
+            attrs[ATTR_PARSER_HEALTH] = endpoint_health
 
         return attrs
