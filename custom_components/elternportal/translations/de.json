@@ -12,7 +12,7 @@
       },
       "child": {
         "title": "Name des Kindes",
-        "description": "Geben Sie einen Namen oder ein Kürzel für Ihr Kind ein. Dieser bestimmt die Sensor-Entity-IDs (z.B. 'SFG' → sensor.aegymuc_sfg_schulaufgaben). Leer lassen für automatische Erkennung.",
+        "description": "Geben Sie einen Namen oder ein Kürzel für Ihr Kind ein. Dieser bestimmt die Sensor-Entity-IDs (z.B. 'MAX' → sensor.meineschule_max_schulaufgaben). Leer lassen für automatische Erkennung.",
         "data": {
           "child_name": "Name / Kürzel"
         }
@@ -39,7 +39,7 @@
     "step": {
       "init": {
         "title": "ElternPortal Optionen",
-        "description": "Konfigurieren Sie den Kindernamen. Dieser wird in den Sensornamen verwendet (z.B. sensor.aegymuc_samuel_schulaufgaben). Leer lassen für automatische Erkennung.",
+        "description": "Konfigurieren Sie den Kindernamen. Dieser wird in den Sensornamen verwendet (z.B. sensor.meineschule_max_schulaufgaben). Leer lassen für automatische Erkennung.",
         "data": {
           "child_name": "Name des Kindes",
           "enable_school_info": "Schulinformationen",

@@ -12,7 +12,7 @@
       },
       "child": {
         "title": "Child Name",
-        "description": "Enter a name or short code for your child. This determines the sensor entity IDs (e.g. 'SFG' → sensor.aegymuc_sfg_schulaufgaben). Leave empty for auto-detection from the portal.",
+        "description": "Enter a name or short code for your child. This determines the sensor entity IDs (e.g. 'MAX' → sensor.myschool_max_schulaufgaben). Leave empty for auto-detection from the portal.",
         "data": {
           "child_name": "Child name / short code"
         }
