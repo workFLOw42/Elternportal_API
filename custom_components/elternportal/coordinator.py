@@ -12,7 +12,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .api import ElternPortalApi, ElternPortalApiError, ElternPortalAuthError
-from .const import DOMAIN
+from .const import CONF_SCHOOL_SLUG, DOMAIN, HEALTH_DEGRADED
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -154,5 +154,19 @@ class ElternPortalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if critical_count > 0:
             self._consecutive_empty = 0
             self._last_good_data = new_data
+
+        # ── Fire events for degraded parsers ──
+        health = new_data.get("_parser_health", {})
+        for endpoint, status in health.items():
+            if status == HEALTH_DEGRADED:
+                self.hass.bus.async_fire(
+                    "elternportal_parser_degraded",
+                    {
+                        "endpoint": endpoint,
+                        "school_slug": self.config_entry.data.get(
+                            CONF_SCHOOL_SLUG
+                        ),
+                    },
+                )
 
         return new_data

@@ -43,3 +43,9 @@ ATTR_ENTRIES: Final = "entries"
 ATTR_LAST_FETCH: Final = "last_fetch"
 ATTR_CHILD_NAME: Final = "child_name"
 ATTR_CLASS_NAME: Final = "class_name"
+ATTR_PARSER_HEALTH: Final = "parser_health"
+
+# Parser health status
+HEALTH_OK: Final = "ok"
+HEALTH_EMPTY: Final = "empty"
+HEALTH_DEGRADED: Final = "degraded"
