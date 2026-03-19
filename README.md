@@ -1,7 +1,7 @@
 # 📋 ElternPortal API – Home Assistant Integration
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/workFLOw42/Elternportal_API/main/images/logo-hires.png" alt="ElternPortal API" width="256">
+  <img src="https://raw.githubusercontent.com/workFLOw42/Elternportal_API/main/custom_components/elternportal/brand/logo@2x.png" alt="ElternPortal API" width="256">
 </p>
 
 <p align="center">
