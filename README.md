@@ -1,7 +1,7 @@
 # 📋 ElternPortal API – Home Assistant Integration
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/workFLOw42/Elternportal_API/main/custom_components/elternportal/brand/logo@2x.png" alt="ElternPortal API" width="256">
+  <img src="https://raw.githubusercontent.com/workFLOw42/Elternportal_API/main/custom_components/elternportal/brand/icon@2x.png" alt="ElternPortal API" width="256">
 </p>
 
 <p align="center">
@@ -13,9 +13,6 @@
   </a>
   <a href="https://github.com/workFLOw42/Elternportal_API/releases">
     <img src="https://img.shields.io/github/v/release/workFLOw42/Elternportal_API" alt="GitHub Release">
-  </a>
-  <a href="https://github.com/workFLOw42/Elternportal_API">
-    <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fanalytics.home-assistant.io%2Fcustom_integrations.json&query=%24.elternportal.total&label=HACS%20Installs&color=41BDF5" alt="HACS Installs">
   </a>
   <a href="https://github.com/workFLOw42/Elternportal_API/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
