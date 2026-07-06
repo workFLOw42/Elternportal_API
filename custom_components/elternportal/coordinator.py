@@ -37,11 +37,13 @@ class ElternPortalCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self,
         hass: HomeAssistant,
         api: ElternPortalApi,
+        config_entry: ConfigEntry,
     ) -> None:
         """Initialize."""
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=config_entry,
             name=DOMAIN,
             update_interval=None,
         )
